@@ -506,7 +506,7 @@ namespace HermesEnvGui
         {
             result.Info("开始重启服务...");
 
-            if (!StopHermes(result))
+            if (!EnsureHermesStoppedForUpgrade(result))
             {
                 return;
             }
@@ -611,6 +611,40 @@ namespace HermesEnvGui
         static bool StopHermes(ExecutionResult result)
         {
             return RunCommandAndWait("hermes-web-ui stop", 60000, result);
+        }
+
+        static bool EnsureHermesStoppedForUpgrade(ExecutionResult result)
+        {
+            result.Info("正在停止 Hermes 服务...");
+            string output;
+            var stopSucceeded = RunCommandAndCapture("hermes-web-ui stop", 60000, out output);
+            if (stopSucceeded)
+            {
+                result.Success("Hermes 服务已停止。");
+                return true;
+            }
+
+            result.Warn("停止 Hermes 服务命令未成功，开始检查服务运行状态。");
+            string restartOutput;
+            RunCommandAndCapture("hermes-web-ui restart", 60000, out restartOutput);
+
+            var combinedOutput = (output + Environment.NewLine + restartOutput).ToLowerInvariant();
+            if (combinedOutput.IndexOf("not running", StringComparison.OrdinalIgnoreCase) >= 0 &&
+                CountProcessesByName("python") == 0 &&
+                CountProcessesByName("pythonw") == 0)
+            {
+                result.Success("Hermes 当前未运行，继续执行系统升级。");
+                return true;
+            }
+
+            if (CountProcessesByName("python") == 0 && CountProcessesByName("pythonw") == 0)
+            {
+                result.Warn("未检测到 python.exe 进程，按 Hermes 未运行处理并继续升级。");
+                return true;
+            }
+
+            result.Error("停止 Hermes 服务失败，且仍检测到 python.exe 进程。");
+            return false;
         }
 
         static void KillPythonProcesses(ExecutionResult result)
@@ -904,6 +938,41 @@ namespace HermesEnvGui
             catch (Exception ex)
             {
                 result.Error("命令执行失败：" + command + "；详情：" + ex.Message);
+                return false;
+            }
+        }
+
+        static bool RunCommandAndCapture(string command, int timeoutMilliseconds, out string output)
+        {
+            output = "";
+            try
+            {
+                var psi = new ProcessStartInfo();
+                psi.FileName = "cmd.exe";
+                psi.Arguments = "/c " + command;
+                psi.CreateNoWindow = true;
+                psi.UseShellExecute = false;
+                psi.RedirectStandardOutput = true;
+                psi.RedirectStandardError = true;
+
+                using (var process = Process.Start(psi))
+                {
+                    if (!process.WaitForExit(timeoutMilliseconds))
+                    {
+                        try { process.Kill(); } catch { }
+                        output = "命令执行超时：" + command;
+                        return false;
+                    }
+
+                    var standardOutput = process.StandardOutput.ReadToEnd();
+                    var standardError = process.StandardError.ReadToEnd();
+                    output = (standardOutput + Environment.NewLine + standardError).Trim();
+                    return process.ExitCode == 0;
+                }
+            }
+            catch (Exception ex)
+            {
+                output = ex.Message;
                 return false;
             }
         }
