@@ -32,6 +32,8 @@ namespace HermesEnvGui
         DownloadYaml,
         BindAccount,
         ClearCache,
+        StartService,
+        StopService,
         RestartService,
         SystemUpgrade,
         RunAll
@@ -160,11 +162,13 @@ namespace HermesEnvGui
 
             var footer = new TableLayoutPanel();
             footer.Dock = DockStyle.Fill;
-            footer.ColumnCount = 3;
+            footer.ColumnCount = 5;
             footer.RowCount = 1;
             footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 38F));
             footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-            footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120F));
+            footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92F));
+            footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92F));
+            footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92F));
             root.Controls.Add(footer, 0, 3);
 
             statusLamp = new StatusLamp();
@@ -179,17 +183,29 @@ namespace HermesEnvGui
             statusLabel.Anchor = AnchorStyles.Left;
             footer.Controls.Add(statusLabel, 1, 0);
 
-            var restartButton = TaskButton("重启服务", TaskMode.RestartService, Color.FromArgb(35, 128, 150));
-            restartButton.Font = new Font(Font.FontFamily, 9.5F, FontStyle.Bold);
-            restartButton.MinimumSize = new Size(90, 30);
-            restartButton.Margin = new Padding(8, 4, 0, 4);
-            footer.Controls.Add(restartButton, 2, 0);
+            var startButton = SmallTaskButton("启动服务", TaskMode.StartService, Color.FromArgb(30, 120, 82));
+            footer.Controls.Add(startButton, 2, 0);
+
+            var stopButton = SmallTaskButton("停止服务", TaskMode.StopService, Color.FromArgb(142, 75, 75));
+            footer.Controls.Add(stopButton, 3, 0);
+
+            var restartButton = SmallTaskButton("重启服务", TaskMode.RestartService, Color.FromArgb(35, 128, 150));
+            footer.Controls.Add(restartButton, 4, 0);
 
             if (!IsAdministrator())
             {
                 SetButtonsEnabled(false);
                 SetStatus("状态：需要管理员权限运行", Color.Firebrick, Color.FromArgb(208, 55, 55));
             }
+        }
+
+        Button SmallTaskButton(string text, TaskMode mode, Color color)
+        {
+            var button = TaskButton(text, mode, color);
+            button.Font = new Font(Font.FontFamily, 9.5F, FontStyle.Bold);
+            button.MinimumSize = new Size(82, 30);
+            button.Margin = new Padding(6, 4, 0, 4);
+            return button;
         }
 
         Panel CreateAccountTaskCard()
@@ -295,6 +311,16 @@ namespace HermesEnvGui
                 return "状态：重启完成";
             }
 
+            if (mode == TaskMode.StartService)
+            {
+                return "状态：服务已启动";
+            }
+
+            if (mode == TaskMode.StopService)
+            {
+                return "状态：服务已停止";
+            }
+
             if (mode == TaskMode.SystemUpgrade)
             {
                 return "状态：执行成功";
@@ -335,6 +361,18 @@ namespace HermesEnvGui
                 if (mode == TaskMode.ClearCache || mode == TaskMode.RunAll)
                 {
                     ClearCache(result);
+                    if (!result.Succeeded) return result;
+                }
+
+                if (mode == TaskMode.StartService)
+                {
+                    StartService(result);
+                    if (!result.Succeeded) return result;
+                }
+
+                if (mode == TaskMode.StopService)
+                {
+                    StopService(result);
                     if (!result.Succeeded) return result;
                 }
 
@@ -489,6 +527,37 @@ namespace HermesEnvGui
 
             Thread.Sleep(8000);
             result.Success("服务已重启。");
+        }
+
+        static void StartService(ExecutionResult result)
+        {
+            result.Info("开始启动服务...");
+
+            if (!StartCommandDetached("hermes-web-ui start", result))
+            {
+                return;
+            }
+
+            if (!WaitForPythonProcess(60000))
+            {
+                result.Error("启动后未检测到 python.exe 进程。");
+                return;
+            }
+
+            Thread.Sleep(8000);
+            result.Success("服务已启动。");
+        }
+
+        static void StopService(ExecutionResult result)
+        {
+            result.Info("开始停止服务...");
+
+            if (!StopHermes(result))
+            {
+                return;
+            }
+
+            result.Success("服务已停止。");
         }
 
         static void SystemUpgrade(ExecutionResult result)
