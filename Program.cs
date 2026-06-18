@@ -57,6 +57,8 @@ namespace HermesEnvGui
         readonly TextBox logBox;
         readonly Label statusLabel;
         readonly StatusLamp statusLamp;
+        readonly ProgressBar progressBar;
+        readonly Label progressLabel;
         readonly List<Button> taskButtons = new List<Button>();
 
         public MainForm()
@@ -64,8 +66,8 @@ namespace HermesEnvGui
             Text = "AI助理优化工具";
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
             StartPosition = FormStartPosition.CenterScreen;
-            MinimumSize = new Size(760, 640);
-            Size = new Size(820, 680);
+            MinimumSize = new Size(760, 680);
+            Size = new Size(820, 720);
             Font = new Font("Microsoft YaHei UI", 10F);
             BackColor = Color.FromArgb(246, 248, 251);
 
@@ -73,10 +75,11 @@ namespace HermesEnvGui
             root.Dock = DockStyle.Fill;
             root.Padding = new Padding(18);
             root.ColumnCount = 1;
-            root.RowCount = 4;
+            root.RowCount = 5;
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 84F));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 336F));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 34F));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 42F));
             Controls.Add(root);
 
@@ -160,6 +163,29 @@ namespace HermesEnvGui
             logBox.Font = new Font("Consolas", 9F);
             logLayout.Controls.Add(logBox, 0, 1);
 
+            var progressLayout = new TableLayoutPanel();
+            progressLayout.Dock = DockStyle.Fill;
+            progressLayout.ColumnCount = 2;
+            progressLayout.RowCount = 1;
+            progressLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 160F));
+            progressLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            progressLayout.Margin = new Padding(0, 0, 0, 8);
+            root.Controls.Add(progressLayout, 0, 3);
+
+            progressLabel = new Label();
+            progressLabel.AutoSize = true;
+            progressLabel.Text = "进度：等待执行";
+            progressLabel.ForeColor = Color.FromArgb(54, 65, 82);
+            progressLabel.Anchor = AnchorStyles.Left;
+            progressLayout.Controls.Add(progressLabel, 0, 0);
+
+            progressBar = new ProgressBar();
+            progressBar.Dock = DockStyle.Fill;
+            progressBar.Minimum = 0;
+            progressBar.Maximum = 100;
+            progressBar.Value = 0;
+            progressLayout.Controls.Add(progressBar, 1, 0);
+
             var footer = new TableLayoutPanel();
             footer.Dock = DockStyle.Fill;
             footer.ColumnCount = 5;
@@ -169,7 +195,7 @@ namespace HermesEnvGui
             footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92F));
             footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92F));
             footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92F));
-            root.Controls.Add(footer, 0, 3);
+            root.Controls.Add(footer, 0, 4);
 
             statusLamp = new StatusLamp();
             statusLamp.Dock = DockStyle.Fill;
@@ -279,9 +305,11 @@ namespace HermesEnvGui
 
             SetButtonsEnabled(false);
             logBox.Clear();
+            SetProgress(0, "进度：准备执行");
             SetStatus("状态：正在执行...", Color.FromArgb(54, 65, 82), Color.FromArgb(52, 132, 215));
 
-            var result = await Task.Run(() => Execute(mode, domainAccount, employeeId));
+            var progress = new Progress<ProgressUpdate>(update => SetProgress(update.Value, update.Text));
+            var result = await Task.Run(() => Execute(mode, domainAccount, employeeId, progress));
 
             foreach (var line in result.LogLines)
             {
@@ -290,14 +318,17 @@ namespace HermesEnvGui
 
             if (result.Succeeded && !result.HasWarnings)
             {
+                SetProgress(100, "进度：完成");
                 SetStatus(GetSuccessStatusText(mode), Color.ForestGreen, Color.FromArgb(35, 168, 89));
             }
             else if (result.Succeeded)
             {
+                SetProgress(100, "进度：完成");
                 SetStatus(GetSuccessStatusText(mode), Color.ForestGreen, Color.FromArgb(35, 168, 89));
             }
             else
             {
+                SetProgress(progressBar.Value, "进度：失败");
                 SetStatus("状态：执行失败", Color.Firebrick, Color.FromArgb(208, 55, 55));
             }
 
@@ -329,62 +360,70 @@ namespace HermesEnvGui
             return "状态：执行成功，请重启服务";
         }
 
-        static ExecutionResult Execute(TaskMode mode, string domainAccount, string employeeId)
+        static ExecutionResult Execute(TaskMode mode, string domainAccount, string employeeId, IProgress<ProgressUpdate> progress)
         {
             var result = new ExecutionResult();
             try
             {
                 if (mode == TaskMode.InitEnv || mode == TaskMode.RunAll)
                 {
+                    progress.Report(new ProgressUpdate(10, "进度：env配置优化"));
                     InitEnv(result);
                     if (!result.Succeeded) return result;
                 }
 
                 if (mode == TaskMode.UpdateStartup || mode == TaskMode.RunAll)
                 {
+                    progress.Report(new ProgressUpdate(25, "进度：启动项优化"));
                     UpdateStartup(result);
                     if (!result.Succeeded) return result;
                 }
 
                 if (mode == TaskMode.DownloadYaml || mode == TaskMode.RunAll)
                 {
+                    progress.Report(new ProgressUpdate(40, "进度：config配置优化"));
                     DownloadYaml(result);
                     if (!result.Succeeded) return result;
                 }
 
                 if (mode == TaskMode.BindAccount || mode == TaskMode.RunAll)
                 {
+                    progress.Report(new ProgressUpdate(60, "进度：账号信息绑定"));
                     BindAccount(result, domainAccount, employeeId);
                     if (!result.Succeeded) return result;
                 }
 
                 if (mode == TaskMode.ClearCache || mode == TaskMode.RunAll)
                 {
+                    progress.Report(new ProgressUpdate(80, "进度：缓存清理"));
                     ClearCache(result);
                     if (!result.Succeeded) return result;
                 }
 
                 if (mode == TaskMode.StartService)
                 {
+                    progress.Report(new ProgressUpdate(20, "进度：启动服务"));
                     StartService(result);
                     if (!result.Succeeded) return result;
                 }
 
                 if (mode == TaskMode.StopService)
                 {
+                    progress.Report(new ProgressUpdate(20, "进度：停止服务"));
                     StopService(result);
                     if (!result.Succeeded) return result;
                 }
 
                 if (mode == TaskMode.RestartService)
                 {
+                    progress.Report(new ProgressUpdate(20, "进度：重启服务"));
                     RestartService(result);
                     if (!result.Succeeded) return result;
                 }
 
                 if (mode == TaskMode.SystemUpgrade)
                 {
-                    SystemUpgrade(result);
+                    SystemUpgrade(result, progress);
                     if (!result.Succeeded) return result;
                 }
             }
@@ -560,23 +599,28 @@ namespace HermesEnvGui
             result.Success("服务已停止。");
         }
 
-        static void SystemUpgrade(ExecutionResult result)
+        static void SystemUpgrade(ExecutionResult result, IProgress<ProgressUpdate> progress)
         {
+            progress.Report(new ProgressUpdate(3, "进度：开始系统升级"));
             result.Info("开始系统升级...");
 
-            if (!StopHermes(result))
+            progress.Report(new ProgressUpdate(8, "进度：停止服务"));
+            if (!EnsureHermesStoppedForUpgrade(result))
             {
                 return;
             }
 
+            progress.Report(new ProgressUpdate(15, "进度：结束进程"));
             KillPythonProcesses(result);
             if (!result.Succeeded) return;
 
+            progress.Report(new ProgressUpdate(22, "进度：备份 hermes-agent"));
             if (!BackupProgramFolder(HermesAgentPath, result))
             {
                 return;
             }
 
+            progress.Report(new ProgressUpdate(30, "进度：备份 hermes-web-ui"));
             if (!BackupProgramFolder(HermesWebUiPath, result))
             {
                 return;
@@ -584,8 +628,8 @@ namespace HermesEnvGui
 
             try
             {
-                DownloadAndExtractPackage(HermesAgentZipUrl, "hermes-agent", HermesAgentPath, result);
-                DownloadAndExtractPackage(HermesWebUiZipUrl, "hermes-web-ui", HermesWebUiPath, result);
+                DownloadAndExtractPackage(HermesAgentZipUrl, "hermes-agent", HermesAgentPath, result, progress, 35, 58);
+                DownloadAndExtractPackage(HermesWebUiZipUrl, "hermes-web-ui", HermesWebUiPath, result, progress, 60, 84);
             }
             catch (Exception ex)
             {
@@ -593,11 +637,13 @@ namespace HermesEnvGui
                 return;
             }
 
+            progress.Report(new ProgressUpdate(90, "进度：启动服务"));
             if (!StartCommandDetached("hermes-web-ui start", result))
             {
                 return;
             }
 
+            progress.Report(new ProgressUpdate(95, "进度：等待服务恢复"));
             if (!WaitForPythonProcess(60000))
             {
                 result.Error("升级后未检测到 python.exe 进程。");
@@ -605,6 +651,7 @@ namespace HermesEnvGui
             }
 
             Thread.Sleep(8000);
+            progress.Report(new ProgressUpdate(100, "进度：系统升级完成"));
             result.Success("系统升级完成。");
         }
 
@@ -731,7 +778,7 @@ namespace HermesEnvGui
             }
         }
 
-        static void DownloadAndExtractPackage(string packageUrl, string folderName, string targetPath, ExecutionResult result)
+        static void DownloadAndExtractPackage(string packageUrl, string folderName, string targetPath, ExecutionResult result, IProgress<ProgressUpdate> progress, int startProgress, int endProgress)
         {
             var sevenZipPath = Find7ZipPath();
             if (sevenZipPath.Length == 0)
@@ -748,6 +795,7 @@ namespace HermesEnvGui
                 Directory.CreateDirectory(tempRoot);
                 Directory.CreateDirectory(extractPath);
 
+                progress.Report(new ProgressUpdate(startProgress, "进度：下载 " + folderName));
                 if (!DownloadFileToPath(packageUrl, zipPath, 600000))
                 {
                     var psResult = TryDownloadWithPowerShell(packageUrl, zipPath);
@@ -762,12 +810,15 @@ namespace HermesEnvGui
                     throw new InvalidOperationException(folderName + " 压缩包下载失败。");
                 }
 
+                progress.Report(new ProgressUpdate(startProgress + ((endProgress - startProgress) / 3), "进度：解压 " + folderName));
                 if (!RunExecutableAndWait(sevenZipPath, "x \"" + zipPath + "\" -o\"" + extractPath + "\" -y", 600000))
                 {
                     throw new InvalidOperationException(folderName + " 解压失败。");
                 }
 
+                progress.Report(new ProgressUpdate(startProgress + ((endProgress - startProgress) * 2 / 3), "进度：复制 " + folderName));
                 MoveExtractedContent(extractPath, folderName, targetPath);
+                progress.Report(new ProgressUpdate(endProgress, "进度：" + folderName + " 更新完成"));
                 result.Success(folderName + " 已更新。");
             }
             finally
@@ -1259,6 +1310,14 @@ endlocal
             statusLamp.Invalidate();
         }
 
+        void SetProgress(int value, string text)
+        {
+            if (value < progressBar.Minimum) value = progressBar.Minimum;
+            if (value > progressBar.Maximum) value = progressBar.Maximum;
+            progressBar.Value = value;
+            progressLabel.Text = text;
+        }
+
         void AppendLog(string message)
         {
             logBox.AppendText(DateTime.Now.ToString("HH:mm:ss ") + message + Environment.NewLine);
@@ -1283,6 +1342,18 @@ endlocal
         public void Success(string message) { LogLines.Add("[OK] " + message); }
         public void Warn(string message) { HasWarnings = true; LogLines.Add("[WARN] " + message); }
         public void Error(string message) { Succeeded = false; LogLines.Add("[ERROR] " + message); }
+    }
+
+    sealed class ProgressUpdate
+    {
+        public readonly int Value;
+        public readonly string Text;
+
+        public ProgressUpdate(int value, string text)
+        {
+            Value = value;
+            Text = text;
+        }
     }
 
     sealed class StatusLamp : Control
