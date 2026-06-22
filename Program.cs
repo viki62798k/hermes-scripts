@@ -35,6 +35,7 @@ namespace HermesEnvGui
         StartService,
         StopService,
         RestartService,
+        ToolUpgrade,
         SystemUpgrade,
         RunAll
     }
@@ -51,6 +52,9 @@ namespace HermesEnvGui
         const string HermesWebUiPath = @"C:\Program Files\hermes-web-ui";
         const string HermesAgentZipUrl = "https://mirrors.qilu-pharma.com/ps-scripts/hermes-agent.zip";
         const string HermesWebUiZipUrl = "https://mirrors.qilu-pharma.com/ps-scripts/hermes-web-ui.zip";
+        const string ToolCurrentVersion = "2.0.1";
+        const string ToolVersionUrl = "https://mirrors.qilu-pharma.com/ps-scripts/AIOptimizeTool.version";
+        const string ToolExeUrl = "https://mirrors.qilu-pharma.com/ps-scripts/AIOptimizeTool.exe";
 
         TextBox domainAccountBox;
         TextBox employeeIdBox;
@@ -188,10 +192,11 @@ namespace HermesEnvGui
 
             var footer = new TableLayoutPanel();
             footer.Dock = DockStyle.Fill;
-            footer.ColumnCount = 5;
+            footer.ColumnCount = 6;
             footer.RowCount = 1;
             footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 38F));
             footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92F));
             footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92F));
             footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92F));
             footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92F));
@@ -209,14 +214,17 @@ namespace HermesEnvGui
             statusLabel.Anchor = AnchorStyles.Left;
             footer.Controls.Add(statusLabel, 1, 0);
 
+            var upgradeButton = SmallTaskButton("工具升级", TaskMode.ToolUpgrade, Color.FromArgb(45, 104, 173));
+            footer.Controls.Add(upgradeButton, 2, 0);
+
             var startButton = SmallTaskButton("启动服务", TaskMode.StartService, Color.FromArgb(30, 120, 82));
-            footer.Controls.Add(startButton, 2, 0);
+            footer.Controls.Add(startButton, 3, 0);
 
             var stopButton = SmallTaskButton("停止服务", TaskMode.StopService, Color.FromArgb(142, 75, 75));
-            footer.Controls.Add(stopButton, 3, 0);
+            footer.Controls.Add(stopButton, 4, 0);
 
             var restartButton = SmallTaskButton("重启服务", TaskMode.RestartService, Color.FromArgb(35, 128, 150));
-            footer.Controls.Add(restartButton, 4, 0);
+            footer.Controls.Add(restartButton, 5, 0);
 
             if (!IsAdministrator())
             {
@@ -333,6 +341,12 @@ namespace HermesEnvGui
             }
 
             SetButtonsEnabled(IsAdministrator());
+
+            if (result.ShouldExit)
+            {
+                await Task.Delay(800);
+                Application.Exit();
+            }
         }
 
         static string GetSuccessStatusText(TaskMode mode)
@@ -350,6 +364,11 @@ namespace HermesEnvGui
             if (mode == TaskMode.StopService)
             {
                 return "状态：服务已停止";
+            }
+
+            if (mode == TaskMode.ToolUpgrade)
+            {
+                return "状态：工具升级已启动";
             }
 
             if (mode == TaskMode.SystemUpgrade)
@@ -418,6 +437,13 @@ namespace HermesEnvGui
                 {
                     progress.Report(new ProgressUpdate(20, "进度：重启服务"));
                     RestartService(result);
+                    if (!result.Succeeded) return result;
+                }
+
+                if (mode == TaskMode.ToolUpgrade)
+                {
+                    progress.Report(new ProgressUpdate(10, "进度：检查工具版本"));
+                    ToolUpgrade(result, progress);
                     if (!result.Succeeded) return result;
                 }
 
@@ -597,6 +623,103 @@ namespace HermesEnvGui
             }
 
             result.Success("服务已停止。");
+        }
+
+        static void ToolUpgrade(ExecutionResult result, IProgress<ProgressUpdate> progress)
+        {
+            result.Info("开始检查工具升级...");
+
+            string remoteVersion;
+            try
+            {
+                using (var client = CreateWebClient(30000))
+                {
+                    remoteVersion = client.DownloadString(ToolVersionUrl).Trim();
+                }
+            }
+            catch (Exception ex)
+            {
+                result.Error("读取工具版本文件失败。详情：" + ex.Message);
+                return;
+            }
+
+            result.Info("当前版本：" + ToolCurrentVersion + "，云端版本：" + remoteVersion);
+            if (!IsRemoteVersionNewer(remoteVersion, ToolCurrentVersion))
+            {
+                progress.Report(new ProgressUpdate(100, "进度：已是最新版本"));
+                result.Success("当前已是最新版本。");
+                return;
+            }
+
+            progress.Report(new ProgressUpdate(35, "进度：下载新版工具"));
+            var tempRoot = Path.Combine(Path.GetTempPath(), "AIOptimizeToolUpdate_" + Guid.NewGuid().ToString("N"));
+            var newExePath = Path.Combine(tempRoot, "AIOptimizeTool.new.exe");
+            Directory.CreateDirectory(tempRoot);
+
+            if (!DownloadFileToPath(ToolExeUrl, newExePath, 300000))
+            {
+                var psResult = TryDownloadWithPowerShell(ToolExeUrl, newExePath);
+                if (psResult.Length > 0)
+                {
+                    result.Info(psResult);
+                }
+            }
+
+            if (!File.Exists(newExePath) || new FileInfo(newExePath).Length < 10240)
+            {
+                result.Error("新版工具下载失败，请确认云端 AIOptimizeTool.exe 已上传。");
+                return;
+            }
+
+            progress.Report(new ProgressUpdate(70, "进度：准备替换工具"));
+            var currentExePath = Application.ExecutablePath;
+            var updaterPath = Path.Combine(tempRoot, "update_tool.cmd");
+            File.WriteAllText(updaterPath, BuildToolUpdaterScript(newExePath, currentExePath, tempRoot), Encoding.Default);
+
+            var psi = new ProcessStartInfo();
+            psi.FileName = updaterPath;
+            psi.CreateNoWindow = true;
+            psi.UseShellExecute = false;
+            Process.Start(psi);
+
+            progress.Report(new ProgressUpdate(100, "进度：工具升级已启动"));
+            result.Success("工具升级已启动，程序即将自动关闭并替换为新版。");
+            result.ShouldExit = true;
+        }
+
+        static bool IsRemoteVersionNewer(string remoteVersion, string localVersion)
+        {
+            Version remote;
+            Version local;
+            if (!Version.TryParse(remoteVersion, out remote) || !Version.TryParse(localVersion, out local))
+            {
+                return remoteVersion.Trim() != localVersion.Trim();
+            }
+
+            return remote.CompareTo(local) > 0;
+        }
+
+        static string BuildToolUpdaterScript(string newExePath, string currentExePath, string tempRoot)
+        {
+            var currentPid = Process.GetCurrentProcess().Id;
+            return
+@"@echo off
+setlocal
+timeout /t 2 /nobreak >nul
+
+:wait_process
+tasklist /FI ""PID eq " + currentPid + @""" | find """ + currentPid + @""" >nul
+if %errorlevel%==0 (
+    timeout /t 1 /nobreak >nul
+    goto wait_process
+)
+
+copy /Y """ + newExePath + @""" """ + currentExePath + @""" >nul
+start """" """ + currentExePath + @"""
+timeout /t 2 /nobreak >nul
+rmdir /S /Q """ + tempRoot + @"""
+endlocal
+";
         }
 
         static void SystemUpgrade(ExecutionResult result, IProgress<ProgressUpdate> progress)
@@ -1337,6 +1460,7 @@ endlocal
         public readonly List<string> LogLines = new List<string>();
         public bool Succeeded = true;
         public bool HasWarnings;
+        public bool ShouldExit;
 
         public void Info(string message) { LogLines.Add("[INFO] " + message); }
         public void Success(string message) { LogLines.Add("[OK] " + message); }

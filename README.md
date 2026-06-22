@@ -10,6 +10,7 @@
 - config 配置优化
 - 缓存清理
 - 系统升级
+- 工具升级
 - 启动服务
 - 停止服务
 - 重启服务
@@ -57,3 +58,22 @@ https://mirrors.qilu-pharma.com/ps-scripts/
 - `config.yaml`
 - `hermes-agent.zip`
 - `hermes-web-ui.zip`
+- `AIOptimizeTool.version`
+- `AIOptimizeTool.exe`
+
+## 工具升级
+
+工具升级依赖云端两个文件：
+
+```text
+AIOptimizeTool.version
+AIOptimizeTool.exe
+```
+
+`AIOptimizeTool.version` 只需要包含一行版本号，例如：
+
+```text
+2.0.1
+```
+
+当云端版本号高于程序内置版本号时，工具会下载 `AIOptimizeTool.exe` 到临时目录，退出当前程序，然后原地替换并重新打开新版工具。
