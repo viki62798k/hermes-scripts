@@ -52,7 +52,7 @@ namespace HermesEnvGui
         const string HermesWebUiPath = @"C:\Program Files\hermes-web-ui";
         const string HermesAgentZipUrl = "https://mirrors.qilu-pharma.com/ps-scripts/hermes-agent.zip";
         const string HermesWebUiZipUrl = "https://mirrors.qilu-pharma.com/ps-scripts/hermes-web-ui.zip";
-        const string ToolCurrentVersion = "2.0.1";
+        const string ToolCurrentVersion = "2.0.2";
         const string ToolVersionUrl = "https://mirrors.qilu-pharma.com/ps-scripts/AIOptimizeTool.version";
         const string ToolExeUrl = "https://mirrors.qilu-pharma.com/ps-scripts/AIOptimizeTool.exe";
 
@@ -128,13 +128,12 @@ namespace HermesEnvGui
             var accountCard = CreateAccountTaskCard();
             featureGrid.SetColumnSpan(accountCard, 2);
             featureGrid.Controls.Add(accountCard, 0, 0);
-            featureGrid.Controls.Add(TaskButton("env配置优化", TaskMode.InitEnv, Color.FromArgb(45, 104, 173)), 0, 1);
-            featureGrid.Controls.Add(TaskButton("启动项优化", TaskMode.UpdateStartup, Color.FromArgb(45, 104, 173)), 1, 1);
-            featureGrid.Controls.Add(TaskButton("config配置优化", TaskMode.DownloadYaml, Color.FromArgb(45, 104, 173)), 0, 2);
-            featureGrid.Controls.Add(TaskButton("缓存清理", TaskMode.ClearCache, Color.FromArgb(105, 92, 160)), 1, 2);
-            featureGrid.Controls.Add(TaskButton("系统升级", TaskMode.SystemUpgrade, Color.FromArgb(35, 128, 150)), 1, 3);
-            var runAllButton = TaskButton("全部执行", TaskMode.RunAll, Color.FromArgb(188, 91, 35));
-            featureGrid.Controls.Add(runAllButton, 0, 3);
+            featureGrid.Controls.Add(TaskButton("env配置优化", TaskMode.InitEnv, Color.FromArgb(69, 123, 179)), 0, 1);
+            featureGrid.Controls.Add(TaskButton("启动项优化", TaskMode.UpdateStartup, Color.FromArgb(69, 123, 179)), 1, 1);
+            featureGrid.Controls.Add(TaskButton("config配置优化", TaskMode.DownloadYaml, Color.FromArgb(69, 123, 179)), 0, 2);
+            featureGrid.Controls.Add(TaskButton("账号信息绑定", TaskMode.BindAccount, Color.FromArgb(64, 139, 108)), 1, 2);
+            featureGrid.Controls.Add(TaskButton("缓存清理", TaskMode.ClearCache, Color.FromArgb(112, 101, 166)), 0, 3);
+            featureGrid.Controls.Add(TaskButton("AI助理升级", TaskMode.SystemUpgrade, Color.FromArgb(50, 139, 158)), 1, 3);
 
             var logPanel = CreatePanel();
             logPanel.Dock = DockStyle.Fill;
@@ -214,7 +213,7 @@ namespace HermesEnvGui
             statusLabel.Anchor = AnchorStyles.Left;
             footer.Controls.Add(statusLabel, 1, 0);
 
-            var upgradeButton = SmallTaskButton("工具升级", TaskMode.ToolUpgrade, Color.FromArgb(45, 104, 173));
+            var upgradeButton = SmallTaskButton("工具升级", TaskMode.ToolUpgrade, Color.FromArgb(69, 123, 179));
             footer.Controls.Add(upgradeButton, 2, 0);
 
             var startButton = SmallTaskButton("启动服务", TaskMode.StartService, Color.FromArgb(30, 120, 82));
@@ -272,7 +271,7 @@ namespace HermesEnvGui
             employeeIdBox.Margin = new Padding(0, 8, 12, 8);
             layout.Controls.Add(employeeIdBox, 1, 1);
 
-            var button = TaskButton("账号信息绑定", TaskMode.BindAccount, Color.FromArgb(30, 120, 82));
+            var button = TaskButton("一键优化", TaskMode.RunAll, Color.FromArgb(204, 119, 57));
             button.Margin = new Padding(8, 14, 0, 14);
             layout.SetRowSpan(button, 2);
             layout.Controls.Add(button, 2, 0);
@@ -288,8 +287,10 @@ namespace HermesEnvGui
             button.ForeColor = Color.White;
             button.FlatStyle = FlatStyle.Flat;
             button.FlatAppearance.BorderSize = 0;
-            button.Font = new Font(Font.FontFamily, 12F, FontStyle.Bold);
-            button.Margin = new Padding(7);
+            button.FlatAppearance.MouseOverBackColor = ControlPaint.Light(color);
+            button.FlatAppearance.MouseDownBackColor = ControlPaint.Dark(color);
+            button.Font = new Font(Font.FontFamily, 11.5F, FontStyle.Bold);
+            button.Margin = new Padding(8);
             button.MinimumSize = new Size(120, 42);
             button.TextAlign = ContentAlignment.MiddleCenter;
             button.UseVisualStyleBackColor = false;
@@ -1392,7 +1393,7 @@ endlocal
             var panel = new Panel();
             panel.Dock = DockStyle.Fill;
             panel.BackColor = Color.White;
-            panel.BorderStyle = BorderStyle.FixedSingle;
+            panel.BorderStyle = BorderStyle.None;
             return panel;
         }
 
