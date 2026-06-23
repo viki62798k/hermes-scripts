@@ -496,11 +496,9 @@ namespace HermesEnvGui
                 {
                     result.Info(output);
                 }
-                result.Error("hermes config migrate 执行失败。");
-                return;
+                result.Warn("hermes config migrate 执行失败，继续修改本地 config.yaml 参数。");
             }
-
-            if (output.Length > 0)
+            else if (output.Length > 0)
             {
                 result.Info(output);
             }

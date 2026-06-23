@@ -68,7 +68,7 @@ config 配置优化会先执行：
 hermes config migrate
 ```
 
-然后修改本地文件：
+无论该命令是否成功，都会继续修改本地文件：
 
 ```text
 C:\Users\admin\AppData\Local\hermes\config.yaml
