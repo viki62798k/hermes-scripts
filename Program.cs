@@ -51,7 +51,7 @@ namespace HermesEnvGui
         const string HermesWebUiPath = @"C:\Program Files\hermes-web-ui";
         const string HermesAgentZipUrl = "https://mirrors.qilu-pharma.com/ps-scripts/hermes-agent.zip";
         const string HermesWebUiZipUrl = "https://mirrors.qilu-pharma.com/ps-scripts/hermes-web-ui.zip";
-        const string ToolCurrentVersion = "2.0.7";
+        const string ToolCurrentVersion = "2.0.8";
         const string ToolVersionUrl = "https://mirrors.qilu-pharma.com/ps-scripts/AIOptimizeTool.version";
         const string ToolExeUrl = "https://mirrors.qilu-pharma.com/ps-scripts/AIOptimizeTool.exe";
 
@@ -496,9 +496,9 @@ namespace HermesEnvGui
             }
 
             var content = File.ReadAllText(ConfigYamlPath, Encoding.UTF8);
-            if (!TryReplaceYamlNumber(ref content, "context_length", "198000") ||
-                !TryReplaceYamlNumber(ref content, "threshold", "0.5") ||
-                !TryReplaceYamlNumber(ref content, "protect_last_n", "15"))
+            if (!TryReplaceYamlNumberOrRepair(ref content, "context_length", "198000", @"(?m)^\s*\$1198000\s*$", "        context_length: 198000") ||
+                !TryReplaceYamlNumberOrRepair(ref content, "threshold", "0.5", @"(?m)^\s*\$10\.5\s*$", "  threshold: 0.5") ||
+                !TryReplaceYamlNumberOrRepair(ref content, "protect_last_n", "15", @"(?m)^\s*\$115\s*$", "  protect_last_n: 15"))
             {
                 result.Error("config.yaml 中未找到 context_length、threshold 或 protect_last_n 字段，已停止修改。");
                 return;
@@ -506,9 +506,9 @@ namespace HermesEnvGui
             File.WriteAllText(ConfigYamlPath, content, new UTF8Encoding(true));
 
             var savedContent = File.ReadAllText(ConfigYamlPath, Encoding.UTF8);
-            if (Regex.IsMatch(savedContent, @"(?m)^\s*context_length\s*:\s*198000\s*$") &&
-                Regex.IsMatch(savedContent, @"(?m)^\s*threshold\s*:\s*0\.5\s*$") &&
-                Regex.IsMatch(savedContent, @"(?m)^\s*protect_last_n\s*:\s*15\s*$"))
+            if (HasYamlNumber(savedContent, "context_length", "198000") &&
+                HasYamlNumber(savedContent, "threshold", "0.5") &&
+                HasYamlNumber(savedContent, "protect_last_n", "15"))
             {
                 result.Success("config 配置已优化。");
             }
@@ -1364,6 +1364,22 @@ endlocal
             return string.Join(Environment.NewLine, lines.ToArray()).TrimEnd() + Environment.NewLine;
         }
 
+        static bool TryReplaceYamlNumberOrRepair(ref string content, string key, string value, string corruptedPattern, string repairedLine)
+        {
+            if (TryReplaceYamlNumber(ref content, key, value))
+            {
+                return true;
+            }
+
+            if (!Regex.IsMatch(content, corruptedPattern))
+            {
+                return false;
+            }
+
+            content = Regex.Replace(content, corruptedPattern, repairedLine);
+            return true;
+        }
+
         static bool TryReplaceYamlNumber(ref string content, string key, string value)
         {
             var pattern = @"(?m)^(?<prefix>\s*" + Regex.Escape(key) + @"\s*:\s*)(?<value>[-+]?\d+(?:\.\d+)?)(?<suffix>\s*(?:#.*)?$)";
@@ -1377,6 +1393,12 @@ endlocal
                 pattern,
                 match => match.Groups["prefix"].Value + value + match.Groups["suffix"].Value);
             return true;
+        }
+
+        static bool HasYamlNumber(string content, string key, string value)
+        {
+            var pattern = @"(?m)^\s*" + Regex.Escape(key) + @"\s*:\s*" + Regex.Escape(value) + @"\s*(?:#.*)?$";
+            return Regex.IsMatch(content, pattern);
         }
 
         static string BuildDefaultEnvContent()

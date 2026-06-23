@@ -76,6 +76,8 @@ C:\Users\admin\AppData\Local\hermes\config.yaml
 
 这三个字段必须已存在于 `config.yaml` 中；工具只替换字段冒号后面的数字值，保留文件其他内容不变，找不到字段时会停止并报错。
 
+如果文件曾被旧版本误写成 `$10.5`、`$115`、`$1198000` 这类损坏行，工具会自动修复为对应的 `threshold`、`protect_last_n`、`context_length` 字段。
+
 ## 工具升级
 
 工具升级依赖云端两个文件：
