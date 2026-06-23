@@ -51,7 +51,7 @@ namespace HermesEnvGui
         const string HermesWebUiPath = @"C:\Program Files\hermes-web-ui";
         const string HermesAgentZipUrl = "https://mirrors.qilu-pharma.com/ps-scripts/hermes-agent.zip";
         const string HermesWebUiZipUrl = "https://mirrors.qilu-pharma.com/ps-scripts/hermes-web-ui.zip";
-        const string ToolCurrentVersion = "2.0.6";
+        const string ToolCurrentVersion = "2.0.7";
         const string ToolVersionUrl = "https://mirrors.qilu-pharma.com/ps-scripts/AIOptimizeTool.version";
         const string ToolExeUrl = "https://mirrors.qilu-pharma.com/ps-scripts/AIOptimizeTool.exe";
 
@@ -496,9 +496,9 @@ namespace HermesEnvGui
             }
 
             var content = File.ReadAllText(ConfigYamlPath, Encoding.UTF8);
-            if (!TrySetYamlScalar(ref content, "context_length", "198000") ||
-                !TrySetYamlScalar(ref content, "threshold", "0.5") ||
-                !TrySetYamlScalar(ref content, "protect_last_n", "15"))
+            if (!TryReplaceYamlNumber(ref content, "context_length", "198000") ||
+                !TryReplaceYamlNumber(ref content, "threshold", "0.5") ||
+                !TryReplaceYamlNumber(ref content, "protect_last_n", "15"))
             {
                 result.Error("config.yaml 中未找到 context_length、threshold 或 protect_last_n 字段，已停止修改。");
                 return;
@@ -1364,15 +1364,18 @@ endlocal
             return string.Join(Environment.NewLine, lines.ToArray()).TrimEnd() + Environment.NewLine;
         }
 
-        static bool TrySetYamlScalar(ref string content, string key, string value)
+        static bool TryReplaceYamlNumber(ref string content, string key, string value)
         {
-            var pattern = @"(?m)^(\s*" + Regex.Escape(key) + @"\s*:\s*).*$";
+            var pattern = @"(?m)^(?<prefix>\s*" + Regex.Escape(key) + @"\s*:\s*)(?<value>[-+]?\d+(?:\.\d+)?)(?<suffix>\s*(?:#.*)?$)";
             if (!Regex.IsMatch(content, pattern))
             {
                 return false;
             }
 
-            content = Regex.Replace(content, pattern, "$1" + value);
+            content = Regex.Replace(
+                content,
+                pattern,
+                match => match.Groups["prefix"].Value + value + match.Groups["suffix"].Value);
             return true;
         }
 
