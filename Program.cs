@@ -51,7 +51,7 @@ namespace HermesEnvGui
         const string HermesWebUiPath = @"C:\Program Files\hermes-web-ui";
         const string HermesAgentZipUrl = "https://mirrors.qilu-pharma.com/ps-scripts/hermes-agent.zip";
         const string HermesWebUiZipUrl = "https://mirrors.qilu-pharma.com/ps-scripts/hermes-web-ui.zip";
-        const string ToolCurrentVersion = "2.0.3";
+        const string ToolCurrentVersion = "2.0.4";
         const string ToolVersionUrl = "https://mirrors.qilu-pharma.com/ps-scripts/AIOptimizeTool.version";
         const string ToolExeUrl = "https://mirrors.qilu-pharma.com/ps-scripts/AIOptimizeTool.exe";
 
@@ -506,9 +506,13 @@ namespace HermesEnvGui
             }
 
             var content = File.ReadAllText(ConfigYamlPath, Encoding.UTF8);
-            content = SetYamlScalar(content, "context_length", "198000");
-            content = SetYamlScalar(content, "threshold", "0.5");
-            content = SetYamlScalar(content, "protect_last_n", "15");
+            if (!TrySetYamlScalar(ref content, "context_length", "198000") ||
+                !TrySetYamlScalar(ref content, "threshold", "0.5") ||
+                !TrySetYamlScalar(ref content, "protect_last_n", "15"))
+            {
+                result.Error("config.yaml 中未找到 context_length、threshold 或 protect_last_n 字段，已停止修改。");
+                return;
+            }
             File.WriteAllText(ConfigYamlPath, content, new UTF8Encoding(true));
 
             var savedContent = File.ReadAllText(ConfigYamlPath, Encoding.UTF8);
@@ -1370,15 +1374,16 @@ endlocal
             return string.Join(Environment.NewLine, lines.ToArray()).TrimEnd() + Environment.NewLine;
         }
 
-        static string SetYamlScalar(string content, string key, string value)
+        static bool TrySetYamlScalar(ref string content, string key, string value)
         {
             var pattern = @"(?m)^(\s*" + Regex.Escape(key) + @"\s*:\s*).*$";
-            if (Regex.IsMatch(content, pattern))
+            if (!Regex.IsMatch(content, pattern))
             {
-                return Regex.Replace(content, pattern, "$1" + value);
+                return false;
             }
 
-            return content.TrimEnd() + Environment.NewLine + key + ": " + value + Environment.NewLine;
+            content = Regex.Replace(content, pattern, "$1" + value);
+            return true;
         }
 
         static string BuildDefaultEnvContent()

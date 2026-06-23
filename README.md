@@ -80,6 +80,8 @@ C:\Users\admin\AppData\Local\hermes\config.yaml
 - `threshold: 0.5`
 - `protect_last_n: 15`
 
+这三个字段必须已存在于 `config.yaml` 中；工具只替换原字段值，找不到字段时会停止并报错。
+
 ## 工具升级
 
 工具升级依赖云端两个文件：
