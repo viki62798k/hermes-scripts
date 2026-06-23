@@ -51,7 +51,7 @@ namespace HermesEnvGui
         const string HermesWebUiPath = @"C:\Program Files\hermes-web-ui";
         const string HermesAgentZipUrl = "https://mirrors.qilu-pharma.com/ps-scripts/hermes-agent.zip";
         const string HermesWebUiZipUrl = "https://mirrors.qilu-pharma.com/ps-scripts/hermes-web-ui.zip";
-        const string ToolCurrentVersion = "2.0.4";
+        const string ToolCurrentVersion = "2.0.5";
         const string ToolVersionUrl = "https://mirrors.qilu-pharma.com/ps-scripts/AIOptimizeTool.version";
         const string ToolExeUrl = "https://mirrors.qilu-pharma.com/ps-scripts/AIOptimizeTool.exe";
 
@@ -66,7 +66,7 @@ namespace HermesEnvGui
 
         public MainForm()
         {
-            Text = "AI助理优化工具";
+            Text = "AI助理优化工具 v" + ToolCurrentVersion;
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
             StartPosition = FormStartPosition.CenterScreen;
             MinimumSize = new Size(760, 680);
@@ -100,7 +100,7 @@ namespace HermesEnvGui
 
             var title = new Label();
             title.AutoSize = true;
-            title.Text = "AI助理优化工具";
+            title.Text = "AI助理优化工具 v" + ToolCurrentVersion;
             title.Font = new Font(Font.FontFamily, 20F, FontStyle.Bold);
             title.ForeColor = Color.FromArgb(28, 72, 112);
             title.Location = new Point(78, 19);
@@ -344,6 +344,12 @@ namespace HermesEnvGui
 
             if (result.ShouldExit)
             {
+                MessageBox.Show(
+                    this,
+                    "新版工具已下载完成。\r\n\r\n点击“确定”后，当前工具会自动关闭并进行原地替换，稍后会重新打开新版工具。\r\n\r\n请耐心等待，不要手动删除或移动程序文件。",
+                    "工具升级",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
                 await Task.Delay(800);
                 Application.Exit();
             }
