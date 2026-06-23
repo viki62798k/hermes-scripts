@@ -47,7 +47,7 @@ bin\AIOptimizeTool.exe
 
 ## 云端依赖
 
-系统升级和 config 配置优化会访问：
+系统升级、工具升级会访问：
 
 ```text
 https://mirrors.qilu-pharma.com/ps-scripts/
@@ -55,11 +55,30 @@ https://mirrors.qilu-pharma.com/ps-scripts/
 
 目前使用的云端文件：
 
-- `config.yaml`
 - `hermes-agent.zip`
 - `hermes-web-ui.zip`
 - `AIOptimizeTool.version`
 - `AIOptimizeTool.exe`
+
+## config 配置优化
+
+config 配置优化会先执行：
+
+```cmd
+hermes config migrate
+```
+
+然后修改本地文件：
+
+```text
+C:\Users\admin\AppData\Local\hermes\config.yaml
+```
+
+写入以下参数：
+
+- `context_length: 198000`
+- `threshold: 0.5`
+- `protect_last_n: 15`
 
 ## 工具升级
 

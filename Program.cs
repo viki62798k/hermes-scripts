@@ -45,14 +45,13 @@ namespace HermesEnvGui
         const string EnvPath = @"C:\Users\admin\AppData\Local\hermes\.env";
         const string StartupPath = @"C:\Users\admin\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\AiStartup.cmd";
         const string ConfigYamlPath = @"C:\Users\admin\AppData\Local\hermes\config.yaml";
-        const string ConfigYamlUrl = "https://mirrors.qilu-pharma.com/ps-scripts/config.yaml";
         const string UxEnhancePath = @"C:\Users\admin\AppData\Local\hermes\ux-enhance";
         const string ProgramFilesPath = @"C:\Program Files";
         const string HermesAgentPath = @"C:\Program Files\hermes-agent";
         const string HermesWebUiPath = @"C:\Program Files\hermes-web-ui";
         const string HermesAgentZipUrl = "https://mirrors.qilu-pharma.com/ps-scripts/hermes-agent.zip";
         const string HermesWebUiZipUrl = "https://mirrors.qilu-pharma.com/ps-scripts/hermes-web-ui.zip";
-        const string ToolCurrentVersion = "2.0.2";
+        const string ToolCurrentVersion = "2.0.3";
         const string ToolVersionUrl = "https://mirrors.qilu-pharma.com/ps-scripts/AIOptimizeTool.version";
         const string ToolExeUrl = "https://mirrors.qilu-pharma.com/ps-scripts/AIOptimizeTool.exe";
 
@@ -481,17 +480,47 @@ namespace HermesEnvGui
 
         static void DownloadYaml(ExecutionResult result)
         {
-            result.Info("开始下载 YAML 配置文件...");
+            result.Info("开始执行 config 配置优化...");
             Directory.CreateDirectory(Path.GetDirectoryName(ConfigYamlPath));
 
-            var downloaded = DownloadFileWithFallback(ConfigYamlUrl, ConfigYamlPath, "YAML", result);
-            if (downloaded && File.Exists(ConfigYamlPath) && new FileInfo(ConfigYamlPath).Length > 0)
+            string output;
+            if (!RunCommandAndCapture("hermes config migrate", 120000, out output))
             {
-                result.Success("YAML 配置文件已下载。");
+                if (output.Length > 0)
+                {
+                    result.Info(output);
+                }
+                result.Error("hermes config migrate 执行失败。");
+                return;
+            }
+
+            if (output.Length > 0)
+            {
+                result.Info(output);
+            }
+
+            if (!File.Exists(ConfigYamlPath))
+            {
+                result.Error("未找到 config.yaml 文件：" + ConfigYamlPath);
+                return;
+            }
+
+            var content = File.ReadAllText(ConfigYamlPath, Encoding.UTF8);
+            content = SetYamlScalar(content, "context_length", "198000");
+            content = SetYamlScalar(content, "threshold", "0.5");
+            content = SetYamlScalar(content, "protect_last_n", "15");
+            File.WriteAllText(ConfigYamlPath, content, new UTF8Encoding(true));
+
+            var savedContent = File.ReadAllText(ConfigYamlPath, Encoding.UTF8);
+            if (Regex.IsMatch(savedContent, @"(?m)^\s*context_length\s*:\s*198000\s*$") &&
+                Regex.IsMatch(savedContent, @"(?m)^\s*threshold\s*:\s*0\.5\s*$") &&
+                Regex.IsMatch(savedContent, @"(?m)^\s*protect_last_n\s*:\s*15\s*$"))
+            {
+                result.Success("config 配置已优化。");
             }
             else
             {
-                result.Error("YAML 配置文件下载失败。");
+                result.Error("config.yaml 参数保存失败。");
             }
         }
 
@@ -1339,6 +1368,17 @@ endlocal
             }
 
             return string.Join(Environment.NewLine, lines.ToArray()).TrimEnd() + Environment.NewLine;
+        }
+
+        static string SetYamlScalar(string content, string key, string value)
+        {
+            var pattern = @"(?m)^(\s*" + Regex.Escape(key) + @"\s*:\s*).*$";
+            if (Regex.IsMatch(content, pattern))
+            {
+                return Regex.Replace(content, pattern, "$1" + value);
+            }
+
+            return content.TrimEnd() + Environment.NewLine + key + ": " + value + Environment.NewLine;
         }
 
         static string BuildDefaultEnvContent()
