@@ -51,7 +51,7 @@ namespace HermesEnvGui
         const string HermesWebUiPath = @"C:\Program Files\hermes-web-ui";
         const string HermesAgentZipUrl = "https://mirrors.qilu-pharma.com/ps-scripts/hermes-agent.zip";
         const string HermesWebUiZipUrl = "https://mirrors.qilu-pharma.com/ps-scripts/hermes-web-ui.zip";
-        const string ToolCurrentVersion = "2.0.5";
+        const string ToolCurrentVersion = "2.0.6";
         const string ToolVersionUrl = "https://mirrors.qilu-pharma.com/ps-scripts/AIOptimizeTool.version";
         const string ToolExeUrl = "https://mirrors.qilu-pharma.com/ps-scripts/AIOptimizeTool.exe";
 
@@ -488,20 +488,6 @@ namespace HermesEnvGui
         {
             result.Info("开始执行 config 配置优化...");
             Directory.CreateDirectory(Path.GetDirectoryName(ConfigYamlPath));
-
-            string output;
-            if (!RunCommandAndCapture("hermes config migrate", 120000, out output))
-            {
-                if (output.Length > 0)
-                {
-                    result.Info(output);
-                }
-                result.Warn("hermes config migrate 执行失败，继续修改本地 config.yaml 参数。");
-            }
-            else if (output.Length > 0)
-            {
-                result.Info(output);
-            }
 
             if (!File.Exists(ConfigYamlPath))
             {

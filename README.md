@@ -62,13 +62,7 @@ https://mirrors.qilu-pharma.com/ps-scripts/
 
 ## config 配置优化
 
-config 配置优化会先执行：
-
-```cmd
-hermes config migrate
-```
-
-无论该命令是否成功，都会继续修改本地文件：
+config 配置优化会直接修改本地文件：
 
 ```text
 C:\Users\admin\AppData\Local\hermes\config.yaml
