@@ -51,7 +51,7 @@ namespace HermesEnvGui
         const string HermesWebUiPath = @"C:\Program Files\hermes-web-ui";
         const string HermesAgentZipUrl = "https://mirrors.qilu-pharma.com/ps-scripts/hermes-agent.zip";
         const string HermesWebUiZipUrl = "https://mirrors.qilu-pharma.com/ps-scripts/hermes-web-ui.zip";
-        const string ToolCurrentVersion = "2.0.8";
+        const string ToolCurrentVersion = "2.0.9";
         const string ToolVersionUrl = "https://mirrors.qilu-pharma.com/ps-scripts/AIOptimizeTool.version";
         const string ToolExeUrl = "https://mirrors.qilu-pharma.com/ps-scripts/AIOptimizeTool.exe";
 
@@ -498,9 +498,10 @@ namespace HermesEnvGui
             var content = File.ReadAllText(ConfigYamlPath, Encoding.UTF8);
             if (!TryReplaceYamlNumberOrRepair(ref content, "context_length", "198000", @"(?m)^\s*\$1198000\s*$", "        context_length: 198000") ||
                 !TryReplaceYamlNumberOrRepair(ref content, "threshold", "0.5", @"(?m)^\s*\$10\.5\s*$", "  threshold: 0.5") ||
-                !TryReplaceYamlNumberOrRepair(ref content, "protect_last_n", "15", @"(?m)^\s*\$115\s*$", "  protect_last_n: 15"))
+                !TryReplaceYamlNumberOrRepair(ref content, "protect_last_n", "15", @"(?m)^\s*\$115\s*$", "  protect_last_n: 15") ||
+                !TryReplaceCompressionEnabled(ref content))
             {
-                result.Error("config.yaml 中未找到 context_length、threshold 或 protect_last_n 字段，已停止修改。");
+                result.Error("config.yaml 中未找到 context_length、threshold、protect_last_n 或 compression.enabled 字段，已停止修改。");
                 return;
             }
             File.WriteAllText(ConfigYamlPath, content, new UTF8Encoding(true));
@@ -508,7 +509,8 @@ namespace HermesEnvGui
             var savedContent = File.ReadAllText(ConfigYamlPath, Encoding.UTF8);
             if (HasYamlNumber(savedContent, "context_length", "198000") &&
                 HasYamlNumber(savedContent, "threshold", "0.5") &&
-                HasYamlNumber(savedContent, "protect_last_n", "15"))
+                HasYamlNumber(savedContent, "protect_last_n", "15") &&
+                HasCompressionEnabledTrue(savedContent))
             {
                 result.Success("config 配置已优化。");
             }
@@ -1395,10 +1397,46 @@ endlocal
             return true;
         }
 
+        static bool TryReplaceCompressionEnabled(ref string content)
+        {
+            var sectionPattern = @"(?ms)^compression\s*:\s*(?:\r?\n)(?<body>(?:(?!^[A-Za-z0-9_\-]+\s*:).*(?:\r?\n|$))*)";
+            var sectionMatch = Regex.Match(content, sectionPattern);
+            if (!sectionMatch.Success)
+            {
+                return false;
+            }
+
+            var sectionText = sectionMatch.Value;
+            var enabledPattern = @"(?m)^(?<prefix>\s+enabled\s*:\s*)(?<value>true|false|[^\s#]+)(?<suffix>\s*(?:#.*)?$)";
+            if (!Regex.IsMatch(sectionText, enabledPattern))
+            {
+                return false;
+            }
+
+            var enabledRegex = new Regex(enabledPattern, RegexOptions.Multiline);
+            var updatedSection = enabledRegex.Replace(
+                sectionText,
+                match => match.Groups["prefix"].Value + "true" + match.Groups["suffix"].Value,
+                1);
+
+            content = content.Substring(0, sectionMatch.Index) +
+                updatedSection +
+                content.Substring(sectionMatch.Index + sectionMatch.Length);
+            return true;
+        }
+
         static bool HasYamlNumber(string content, string key, string value)
         {
             var pattern = @"(?m)^\s*" + Regex.Escape(key) + @"\s*:\s*" + Regex.Escape(value) + @"\s*(?:#.*)?$";
             return Regex.IsMatch(content, pattern);
+        }
+
+        static bool HasCompressionEnabledTrue(string content)
+        {
+            var sectionPattern = @"(?ms)^compression\s*:\s*(?:\r?\n)(?<body>(?:(?!^[A-Za-z0-9_\-]+\s*:).*(?:\r?\n|$))*)";
+            var sectionMatch = Regex.Match(content, sectionPattern);
+            return sectionMatch.Success &&
+                Regex.IsMatch(sectionMatch.Value, @"(?m)^\s+enabled\s*:\s*true\s*(?:#.*)?$");
         }
 
         static string BuildDefaultEnvContent()

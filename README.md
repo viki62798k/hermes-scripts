@@ -9,7 +9,7 @@
 - 启动项优化
 - config 配置优化
 - 缓存清理
-- 系统升级
+- AI 助理升级
 - 工具升级
 - 启动服务
 - 停止服务
@@ -20,7 +20,7 @@
 
 - Windows
 - .NET Framework 4.x
-- 7-Zip，用于系统升级时解压安装包
+- 7-Zip，用于 AI 助理升级时解压安装包
 - 管理员权限
 
 ## 编译
@@ -31,11 +31,14 @@
 .\build.ps1
 ```
 
-编译完成后，exe 会生成在：
+编译完成后会生成两个 exe：
 
 ```text
+bin\AIOptimizeTool_v2.0.9.exe
 bin\AIOptimizeTool.exe
 ```
+
+带版本号的文件用于人工分发和归档，固定文件名 `AIOptimizeTool.exe` 用于云端工具升级。
 
 ## 主要文件
 
@@ -47,13 +50,13 @@ bin\AIOptimizeTool.exe
 
 ## 云端依赖
 
-系统升级、工具升级会访问：
+AI 助理升级、工具升级会访问：
 
 ```text
 https://mirrors.qilu-pharma.com/ps-scripts/
 ```
 
-目前使用的云端文件：
+当前使用的云端文件：
 
 - `hermes-agent.zip`
 - `hermes-web-ui.zip`
@@ -73,8 +76,9 @@ C:\Users\admin\AppData\Local\hermes\config.yaml
 - `context_length: 198000`
 - `threshold: 0.5`
 - `protect_last_n: 15`
+- `compression.enabled: true`
 
-这三个字段必须已存在于 `config.yaml` 中；工具只替换字段冒号后面的数字值，保留文件其他内容不变，找不到字段时会停止并报错。
+这几个字段必须已存在于 `config.yaml` 中；工具只替换字段冒号后面的值，保留文件其他内容不变。`enabled` 字段只会修改顶层 `compression:` 区块下的 `enabled`，不会改动其他位置的同名字段。
 
 如果文件曾被旧版本误写成 `$10.5`、`$115`、`$1198000` 这类损坏行，工具会自动修复为对应的 `threshold`、`protect_last_n`、`context_length` 字段。
 
@@ -90,7 +94,7 @@ AIOptimizeTool.exe
 `AIOptimizeTool.version` 只需要包含一行版本号，例如：
 
 ```text
-2.0.1
+2.0.9
 ```
 
 当云端版本号高于程序内置版本号时，工具会下载 `AIOptimizeTool.exe` 到临时目录，退出当前程序，然后原地替换并重新打开新版工具。
