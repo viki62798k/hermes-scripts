@@ -40,6 +40,12 @@ namespace HermesEnvGui
         RunAll
     }
 
+    sealed class EdgeSnapshot
+    {
+        public int ProcessCount;
+        public readonly HashSet<string> WindowTitles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    }
+
     sealed class MainForm : Form
     {
         const string EnvPath = @"C:\Users\admin\AppData\Local\hermes\.env";
@@ -51,7 +57,7 @@ namespace HermesEnvGui
         const string HermesWebUiPath = @"C:\Program Files\hermes-web-ui";
         const string HermesAgentZipUrl = "https://mirrors.qilu-pharma.com/ps-scripts/hermes-agent.zip";
         const string HermesWebUiZipUrl = "https://mirrors.qilu-pharma.com/ps-scripts/hermes-web-ui.zip";
-        const string ToolCurrentVersion = "2.0.9";
+        const string ToolCurrentVersion = "2.0.10";
         const string ToolVersionUrl = "https://mirrors.qilu-pharma.com/ps-scripts/AIOptimizeTool.version";
         const string ToolExeUrl = "https://mirrors.qilu-pharma.com/ps-scripts/AIOptimizeTool.exe";
 
@@ -605,18 +611,11 @@ namespace HermesEnvGui
             KillPythonProcesses(result);
             if (!result.Succeeded) return;
 
-            if (!StartCommandDetached("hermes-web-ui start", result))
+            if (!StartHermesAndWaitForEdgePage(result, 90000))
             {
                 return;
             }
 
-            if (!WaitForPythonProcess(60000))
-            {
-                result.Error("服务启动后未检测到 python.exe 进程。");
-                return;
-            }
-
-            Thread.Sleep(8000);
             result.Success("服务已重启。");
         }
 
@@ -624,18 +623,11 @@ namespace HermesEnvGui
         {
             result.Info("开始启动服务...");
 
-            if (!StartCommandDetached("hermes-web-ui start", result))
+            if (!StartHermesAndWaitForEdgePage(result, 90000))
             {
                 return;
             }
 
-            if (!WaitForPythonProcess(60000))
-            {
-                result.Error("启动后未检测到 python.exe 进程。");
-                return;
-            }
-
-            Thread.Sleep(8000);
             result.Success("服务已启动。");
         }
 
@@ -787,19 +779,12 @@ endlocal
             }
 
             progress.Report(new ProgressUpdate(90, "进度：启动服务"));
-            if (!StartCommandDetached("hermes-web-ui start", result))
+            if (!StartHermesAndWaitForEdgePage(result, 90000))
             {
                 return;
             }
 
             progress.Report(new ProgressUpdate(95, "进度：等待服务恢复"));
-            if (!WaitForPythonProcess(60000))
-            {
-                result.Error("升级后未检测到 python.exe 进程。");
-                return;
-            }
-
-            Thread.Sleep(8000);
             progress.Report(new ProgressUpdate(100, "进度：系统升级完成"));
             result.Success("系统升级完成。");
         }
@@ -1078,21 +1063,97 @@ endlocal
             }
         }
 
-        static bool WaitForPythonProcess(int timeoutMilliseconds)
+        static bool StartHermesAndWaitForEdgePage(ExecutionResult result, int timeoutMilliseconds)
+        {
+            var before = CaptureEdgeSnapshot();
+            var startedAt = DateTime.Now.AddSeconds(-2);
+
+            if (!StartCommandDetached("hermes-web-ui start", result))
+            {
+                return false;
+            }
+
+            result.Info("已执行启动命令，正在等待 AI 助理页面打开...");
+            if (!WaitForEdgePageActivity(before, startedAt, timeoutMilliseconds))
+            {
+                result.Error("未检测到 Edge 打开 AI 助理页面，请确认 hermes-web-ui start 是否正常弹出页面。");
+                return false;
+            }
+
+            Thread.Sleep(2000);
+            return true;
+        }
+
+        static EdgeSnapshot CaptureEdgeSnapshot()
+        {
+            var snapshot = new EdgeSnapshot();
+            try
+            {
+                var processes = Process.GetProcessesByName("msedge");
+                snapshot.ProcessCount = processes.Length;
+                foreach (var process in processes)
+                {
+                    try
+                    {
+                        var title = (process.MainWindowTitle ?? "").Trim();
+                        if (title.Length > 0 && !snapshot.WindowTitles.Contains(title))
+                        {
+                            snapshot.WindowTitles.Add(title);
+                        }
+                    }
+                    catch
+                    {
+                    }
+                    finally
+                    {
+                        process.Dispose();
+                    }
+                }
+            }
+            catch
+            {
+            }
+
+            return snapshot;
+        }
+
+        static bool WaitForEdgePageActivity(EdgeSnapshot before, DateTime startedAt, int timeoutMilliseconds)
         {
             var deadline = DateTime.Now.AddMilliseconds(timeoutMilliseconds);
             while (DateTime.Now < deadline)
             {
                 try
                 {
-                    var processes = Process.GetProcessesByName("python");
-                    if (processes.Length > 0)
+                    var processes = Process.GetProcessesByName("msedge");
+                    if (before.ProcessCount == 0 && processes.Length > 0)
                     {
-                        foreach (var process in processes)
+                        DisposeProcesses(processes);
+                        return true;
+                    }
+
+                    foreach (var process in processes)
+                    {
+                        try
+                        {
+                            DateTime processStartedAt;
+                            if (TryGetProcessStartTime(process, out processStartedAt) && processStartedAt >= startedAt)
+                            {
+                                return true;
+                            }
+
+                            var title = (process.MainWindowTitle ?? "").Trim();
+                            if (title.Length > 0 && !before.WindowTitles.Contains(title))
+                            {
+                                return true;
+                            }
+                        }
+                        catch
+                        {
+                        }
+                        finally
                         {
                             process.Dispose();
                         }
-                        return true;
                     }
                 }
                 catch
@@ -1103,6 +1164,28 @@ endlocal
             }
 
             return false;
+        }
+
+        static bool TryGetProcessStartTime(Process process, out DateTime startedAt)
+        {
+            try
+            {
+                startedAt = process.StartTime;
+                return true;
+            }
+            catch
+            {
+                startedAt = DateTime.MinValue;
+                return false;
+            }
+        }
+
+        static void DisposeProcesses(Process[] processes)
+        {
+            foreach (var process in processes)
+            {
+                try { process.Dispose(); } catch { }
+            }
         }
 
         static bool RunCommandAndWait(string command, int timeoutMilliseconds, ExecutionResult result)

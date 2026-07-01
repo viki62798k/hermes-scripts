@@ -34,7 +34,7 @@
 编译完成后会生成两个 exe：
 
 ```text
-bin\AIOptimizeTool_v2.0.9.exe
+bin\AIOptimizeTool_v2.0.10.exe
 bin\AIOptimizeTool.exe
 ```
 
@@ -94,7 +94,7 @@ AIOptimizeTool.exe
 `AIOptimizeTool.version` 只需要包含一行版本号，例如：
 
 ```text
-2.0.9
+2.0.10
 ```
 
 当云端版本号高于程序内置版本号时，工具会下载 `AIOptimizeTool.exe` 到临时目录，退出当前程序，然后原地替换并重新打开新版工具。
