@@ -2,7 +2,7 @@ $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $outDir = Join-Path $root "bin"
-$version = "2.0.10"
+$version = "2.0.11"
 $versionedOutFile = Join-Path $outDir ("AIOptimizeTool_v{0}.exe" -f $version)
 $fixedOutFile = Join-Path $outDir "AIOptimizeTool.exe"
 $csc = Join-Path $env:WINDIR "Microsoft.NET\Framework64\v4.0.30319\csc.exe"

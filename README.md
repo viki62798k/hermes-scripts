@@ -34,7 +34,7 @@
 编译完成后会生成两个 exe：
 
 ```text
-bin\AIOptimizeTool_v2.0.10.exe
+bin\AIOptimizeTool_v2.0.11.exe
 bin\AIOptimizeTool.exe
 ```
 
@@ -61,26 +61,24 @@ https://mirrors.qilu-pharma.com/ps-scripts/
 - `hermes-agent.zip`
 - `hermes-web-ui.zip`
 - `AIOptimizeTool.version`
+- `config.yaml`
 - `AIOptimizeTool.exe`
 
 ## config 配置优化
 
-config 配置优化会直接修改本地文件：
+config 配置优化会从云端下载 `config.yaml` 并覆盖本地文件：
 
 ```text
 C:\Users\admin\AppData\Local\hermes\config.yaml
 ```
 
-写入以下参数：
+下载地址：
 
-- `context_length: 198000`
-- `threshold: 0.5`
-- `protect_last_n: 15`
-- `compression.enabled: true`
+```text
+https://mirrors.qilu-pharma.com/ps-scripts/config.yaml
+```
 
-这几个字段必须已存在于 `config.yaml` 中；工具只替换字段冒号后面的值，保留文件其他内容不变。`enabled` 字段只会修改顶层 `compression:` 区块下的 `enabled`，不会改动其他位置的同名字段。
-
-如果文件曾被旧版本误写成 `$10.5`、`$115`、`$1198000` 这类损坏行，工具会自动修复为对应的 `threshold`、`protect_last_n`、`context_length` 字段。
+工具会先下载到临时文件，确认下载成功且文件非空后，再覆盖本地 `config.yaml`。
 
 ## 工具升级
 
@@ -94,7 +92,7 @@ AIOptimizeTool.exe
 `AIOptimizeTool.version` 只需要包含一行版本号，例如：
 
 ```text
-2.0.10
+2.0.11
 ```
 
 当云端版本号高于程序内置版本号时，工具会下载 `AIOptimizeTool.exe` 到临时目录，退出当前程序，然后原地替换并重新打开新版工具。

@@ -55,9 +55,10 @@ namespace HermesEnvGui
         const string ProgramFilesPath = @"C:\Program Files";
         const string HermesAgentPath = @"C:\Program Files\hermes-agent";
         const string HermesWebUiPath = @"C:\Program Files\hermes-web-ui";
+        const string ConfigYamlUrl = "https://mirrors.qilu-pharma.com/ps-scripts/config.yaml";
         const string HermesAgentZipUrl = "https://mirrors.qilu-pharma.com/ps-scripts/hermes-agent.zip";
         const string HermesWebUiZipUrl = "https://mirrors.qilu-pharma.com/ps-scripts/hermes-web-ui.zip";
-        const string ToolCurrentVersion = "2.0.10";
+        const string ToolCurrentVersion = "2.0.11";
         const string ToolVersionUrl = "https://mirrors.qilu-pharma.com/ps-scripts/AIOptimizeTool.version";
         const string ToolExeUrl = "https://mirrors.qilu-pharma.com/ps-scripts/AIOptimizeTool.exe";
 
@@ -495,34 +496,48 @@ namespace HermesEnvGui
             result.Info("开始执行 config 配置优化...");
             Directory.CreateDirectory(Path.GetDirectoryName(ConfigYamlPath));
 
-            if (!File.Exists(ConfigYamlPath))
+            var tempPath = Path.Combine(Path.GetTempPath(), "AIOptimizeTool_config_" + Guid.NewGuid().ToString("N") + ".yaml");
+            try
             {
-                result.Error("未找到 config.yaml 文件：" + ConfigYamlPath);
-                return;
-            }
+                if (!DownloadFileWithFallback(ConfigYamlUrl, tempPath, "config.yaml", result))
+                {
+                    result.Error("config.yaml 下载失败。");
+                    return;
+                }
 
-            var content = File.ReadAllText(ConfigYamlPath, Encoding.UTF8);
-            if (!TryReplaceYamlNumberOrRepair(ref content, "context_length", "198000", @"(?m)^\s*\$1198000\s*$", "        context_length: 198000") ||
-                !TryReplaceYamlNumberOrRepair(ref content, "threshold", "0.5", @"(?m)^\s*\$10\.5\s*$", "  threshold: 0.5") ||
-                !TryReplaceYamlNumberOrRepair(ref content, "protect_last_n", "15", @"(?m)^\s*\$115\s*$", "  protect_last_n: 15") ||
-                !TryReplaceCompressionEnabled(ref content))
-            {
-                result.Error("config.yaml 中未找到 context_length、threshold、protect_last_n 或 compression.enabled 字段，已停止修改。");
-                return;
-            }
-            File.WriteAllText(ConfigYamlPath, content, new UTF8Encoding(true));
+                if (!File.Exists(tempPath) || new FileInfo(tempPath).Length == 0)
+                {
+                    result.Error("config.yaml 下载文件为空。");
+                    return;
+                }
 
-            var savedContent = File.ReadAllText(ConfigYamlPath, Encoding.UTF8);
-            if (HasYamlNumber(savedContent, "context_length", "198000") &&
-                HasYamlNumber(savedContent, "threshold", "0.5") &&
-                HasYamlNumber(savedContent, "protect_last_n", "15") &&
-                HasCompressionEnabledTrue(savedContent))
-            {
-                result.Success("config 配置已优化。");
+                File.Copy(tempPath, ConfigYamlPath, true);
+
+                if (File.Exists(ConfigYamlPath) && new FileInfo(ConfigYamlPath).Length > 0)
+                {
+                    result.Success("config 配置已下载并覆盖。");
+                }
+                else
+                {
+                    result.Error("config.yaml 覆盖失败。");
+                }
             }
-            else
+            catch (Exception ex)
             {
-                result.Error("config.yaml 参数保存失败。");
+                result.Error("config.yaml 覆盖失败。详情：" + ex.Message);
+            }
+            finally
+            {
+                try
+                {
+                    if (File.Exists(tempPath))
+                    {
+                        File.Delete(tempPath);
+                    }
+                }
+                catch
+                {
+                }
             }
         }
 
