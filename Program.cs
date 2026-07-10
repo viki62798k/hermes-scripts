@@ -58,26 +58,27 @@ namespace HermesEnvGui
         const string ConfigYamlUrl = "https://mirrors.qilu-pharma.com/ps-scripts/config.yaml";
         const string HermesAgentZipUrl = "https://mirrors.qilu-pharma.com/ps-scripts/hermes-agent.zip";
         const string HermesWebUiZipUrl = "https://mirrors.qilu-pharma.com/ps-scripts/hermes-web-ui.zip";
-        const string ToolCurrentVersion = "2.0.11";
+        const string ToolCurrentVersion = "2.1.0";
         const string ToolVersionUrl = "https://mirrors.qilu-pharma.com/ps-scripts/AIOptimizeTool.version";
         const string ToolExeUrl = "https://mirrors.qilu-pharma.com/ps-scripts/AIOptimizeTool.exe";
 
         TextBox domainAccountBox;
         TextBox employeeIdBox;
-        readonly TextBox logBox;
+        readonly RichTextBox logBox;
         readonly Label statusLabel;
         readonly StatusLamp statusLamp;
         readonly ProgressBar progressBar;
         readonly Label progressLabel;
         readonly List<Button> taskButtons = new List<Button>();
+        readonly ContextMenuStrip logContextMenu;
 
         public MainForm()
         {
             Text = "AI助理优化工具 v" + ToolCurrentVersion;
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
             StartPosition = FormStartPosition.CenterScreen;
-            MinimumSize = new Size(760, 680);
-            Size = new Size(820, 720);
+            MinimumSize = new Size(800, 780);
+            Size = new Size(860, 800);
             Font = new Font("Microsoft YaHei UI", 10F);
             BackColor = Color.FromArgb(246, 248, 251);
 
@@ -87,7 +88,7 @@ namespace HermesEnvGui
             root.ColumnCount = 1;
             root.RowCount = 5;
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 84F));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 336F));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 400F));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 34F));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 42F));
@@ -119,27 +120,83 @@ namespace HermesEnvGui
             featurePanel.Margin = new Padding(0, 0, 0, 12);
             root.Controls.Add(featurePanel, 0, 1);
 
-            var featureGrid = new TableLayoutPanel();
-            featureGrid.Dock = DockStyle.Fill;
-            featureGrid.ColumnCount = 2;
-            featureGrid.RowCount = 4;
-            featureGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            featureGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            featureGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, 112F));
-            featureGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, 62F));
-            featureGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, 62F));
-            featureGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, 62F));
-            featurePanel.Controls.Add(featureGrid);
+            var featureLayout = new TableLayoutPanel();
+            featureLayout.Dock = DockStyle.Fill;
+            featureLayout.ColumnCount = 1;
+            featureLayout.RowCount = 3;
+            featureLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 64F));
+            featureLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 60F));
+            featureLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 40F));
+            featurePanel.Controls.Add(featureLayout);
+
+            var runAllButton = new Button();
+            runAllButton.Text = "一键优化";
+            runAllButton.Dock = DockStyle.Fill;
+            runAllButton.BackColor = Color.FromArgb(35, 168, 89);
+            runAllButton.ForeColor = Color.White;
+            runAllButton.FlatStyle = FlatStyle.Flat;
+            runAllButton.FlatAppearance.BorderSize = 0;
+            runAllButton.FlatAppearance.MouseOverBackColor = ControlPaint.Light(Color.FromArgb(35, 168, 89));
+            runAllButton.FlatAppearance.MouseDownBackColor = ControlPaint.Dark(Color.FromArgb(35, 168, 89));
+            runAllButton.Font = new Font(Font.FontFamily, 14F, FontStyle.Bold);
+            runAllButton.MinimumSize = new Size(0, 48);
+            runAllButton.Margin = new Padding(0, 0, 0, 8);
+            runAllButton.TextAlign = ContentAlignment.MiddleCenter;
+            runAllButton.UseVisualStyleBackColor = false;
+            runAllButton.Tag = TaskMode.RunAll;
+            runAllButton.Click += async (sender, args) => await RunSelectedTaskAsync((TaskMode)((Button)sender).Tag);
+            taskButtons.Add(runAllButton);
+            featureLayout.Controls.Add(runAllButton, 0, 0);
+
+            var basicConfigGroup = new GroupBox();
+            basicConfigGroup.Text = "基础配置";
+            basicConfigGroup.Font = new Font(Font.FontFamily, 10F, FontStyle.Bold);
+            basicConfigGroup.ForeColor = Color.FromArgb(36, 45, 59);
+            basicConfigGroup.Dock = DockStyle.Fill;
+            basicConfigGroup.Margin = new Padding(0, 0, 0, 6);
+            featureLayout.Controls.Add(basicConfigGroup, 0, 1);
+
+            var basicGrid = new TableLayoutPanel();
+            basicGrid.Dock = DockStyle.Fill;
+            basicGrid.ColumnCount = 2;
+            basicGrid.RowCount = 3;
+            basicGrid.Padding = new Padding(8);
+            basicGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            basicGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            basicGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, 60F));
+            basicGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
+            basicGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
+            basicConfigGroup.Controls.Add(basicGrid);
 
             var accountCard = CreateAccountTaskCard();
-            featureGrid.SetColumnSpan(accountCard, 2);
-            featureGrid.Controls.Add(accountCard, 0, 0);
-            featureGrid.Controls.Add(TaskButton("env配置优化", TaskMode.InitEnv, Color.FromArgb(69, 123, 179)), 0, 1);
-            featureGrid.Controls.Add(TaskButton("启动项优化", TaskMode.UpdateStartup, Color.FromArgb(69, 123, 179)), 1, 1);
-            featureGrid.Controls.Add(TaskButton("config配置优化", TaskMode.DownloadYaml, Color.FromArgb(69, 123, 179)), 0, 2);
-            featureGrid.Controls.Add(TaskButton("账号信息绑定", TaskMode.BindAccount, Color.FromArgb(64, 139, 108)), 1, 2);
-            featureGrid.Controls.Add(TaskButton("缓存清理", TaskMode.ClearCache, Color.FromArgb(112, 101, 166)), 0, 3);
-            featureGrid.Controls.Add(TaskButton("AI助理升级", TaskMode.SystemUpgrade, Color.FromArgb(50, 139, 158)), 1, 3);
+            accountCard.Dock = DockStyle.Fill;
+            basicGrid.SetColumnSpan(accountCard, 2);
+            basicGrid.Controls.Add(accountCard, 0, 0);
+            basicGrid.Controls.Add(TaskButton("env配置优化", TaskMode.InitEnv, Color.FromArgb(69, 123, 179)), 0, 1);
+            basicGrid.Controls.Add(TaskButton("启动项优化", TaskMode.UpdateStartup, Color.FromArgb(69, 123, 179)), 1, 1);
+            basicGrid.Controls.Add(TaskButton("config配置优化", TaskMode.DownloadYaml, Color.FromArgb(69, 123, 179)), 0, 2);
+            basicGrid.Controls.Add(TaskButton("账号信息绑定", TaskMode.BindAccount, Color.FromArgb(64, 139, 108)), 1, 2);
+
+            var opsGroup = new GroupBox();
+            opsGroup.Text = "运维操作";
+            opsGroup.Font = new Font(Font.FontFamily, 10F, FontStyle.Bold);
+            opsGroup.ForeColor = Color.FromArgb(36, 45, 59);
+            opsGroup.Dock = DockStyle.Fill;
+            opsGroup.Margin = new Padding(0, 6, 0, 0);
+            featureLayout.Controls.Add(opsGroup, 0, 2);
+
+            var opsGrid = new TableLayoutPanel();
+            opsGrid.Dock = DockStyle.Fill;
+            opsGrid.ColumnCount = 2;
+            opsGrid.RowCount = 1;
+            opsGrid.Padding = new Padding(8);
+            opsGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            opsGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            opsGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            opsGroup.Controls.Add(opsGrid);
+
+            opsGrid.Controls.Add(TaskButton("缓存清理", TaskMode.ClearCache, Color.FromArgb(112, 101, 166)), 0, 0);
+            opsGrid.Controls.Add(TaskButton("AI助理升级", TaskMode.SystemUpgrade, Color.FromArgb(50, 139, 158)), 1, 0);
 
             var logPanel = CreatePanel();
             logPanel.Dock = DockStyle.Fill;
@@ -162,15 +219,36 @@ namespace HermesEnvGui
             logTitle.ForeColor = Color.FromArgb(36, 45, 59);
             logLayout.Controls.Add(logTitle, 0, 0);
 
-            logBox = new TextBox();
+            logBox = new RichTextBox();
             logBox.Dock = DockStyle.Fill;
-            logBox.Multiline = true;
             logBox.ReadOnly = true;
-            logBox.ScrollBars = ScrollBars.Vertical;
+            logBox.ScrollBars = RichTextBoxScrollBars.Vertical;
             logBox.BorderStyle = BorderStyle.FixedSingle;
             logBox.BackColor = Color.FromArgb(252, 253, 255);
             logBox.Font = new Font("Consolas", 9F);
+            logBox.DetectUrls = false;
             logLayout.Controls.Add(logBox, 0, 1);
+
+            logContextMenu = new ContextMenuStrip();
+            var copyItem = new ToolStripMenuItem("复制选中");
+            copyItem.Click += (sender, args) =>
+            {
+                if (logBox.SelectionLength > 0)
+                    logBox.Copy();
+            };
+            logContextMenu.Items.Add(copyItem);
+
+            var selectAllItem = new ToolStripMenuItem("全选");
+            selectAllItem.Click += (sender, args) => logBox.SelectAll();
+            logContextMenu.Items.Add(selectAllItem);
+
+            logContextMenu.Items.Add(new ToolStripSeparator());
+
+            var clearItem = new ToolStripMenuItem("清空日志");
+            clearItem.Click += (sender, args) => logBox.Clear();
+            logContextMenu.Items.Add(clearItem);
+
+            logBox.ContextMenuStrip = logContextMenu;
 
             var progressLayout = new TableLayoutPanel();
             progressLayout.Dock = DockStyle.Fill;
@@ -236,6 +314,8 @@ namespace HermesEnvGui
                 SetButtonsEnabled(false);
                 SetStatus("状态：需要管理员权限运行", Color.Firebrick, Color.FromArgb(208, 55, 55));
             }
+
+            LoadAccountFromEnv();
         }
 
         Button SmallTaskButton(string text, TaskMode mode, Color color)
@@ -250,19 +330,17 @@ namespace HermesEnvGui
         Panel CreateAccountTaskCard()
         {
             var card = CreatePanel();
-            card.Margin = new Padding(6);
-            card.Padding = new Padding(12);
+            card.Margin = new Padding(0);
+            card.Padding = new Padding(4);
 
             var layout = new TableLayoutPanel();
             layout.Dock = DockStyle.Fill;
-            layout.ColumnCount = 3;
-            layout.RowCount = 3;
+            layout.ColumnCount = 2;
+            layout.RowCount = 2;
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 90F));
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 180F));
             layout.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
             layout.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 0F));
             card.Controls.Add(layout);
 
             layout.Controls.Add(FormLabel("域账号"), 0, 0);
@@ -277,10 +355,6 @@ namespace HermesEnvGui
             employeeIdBox.Margin = new Padding(0, 8, 12, 8);
             layout.Controls.Add(employeeIdBox, 1, 1);
 
-            var button = TaskButton("一键优化", TaskMode.RunAll, Color.FromArgb(204, 119, 57));
-            button.Margin = new Padding(8, 14, 0, 14);
-            layout.SetRowSpan(button, 2);
-            layout.Controls.Add(button, 2, 0);
             return card;
         }
 
@@ -318,6 +392,31 @@ namespace HermesEnvGui
                 return;
             }
 
+            if (mode == TaskMode.StopService || mode == TaskMode.RestartService || mode == TaskMode.SystemUpgrade)
+            {
+                string confirmMessage;
+                if (mode == TaskMode.StopService)
+                    confirmMessage = "停止服务后所有用户将无法使用AI助理，确定继续？";
+                else if (mode == TaskMode.RestartService)
+                    confirmMessage = "重启服务期间所有用户将暂时无法使用AI助理，确定继续？";
+                else
+                {
+                    var localVersion = GetLocalHermesVersion();
+                    var remoteVersion = GetRemoteHermesVersion();
+                    if (localVersion != null)
+                        confirmMessage = string.Format("当前本地版本: {0}\n云端版本: {1}\n\n升级期间会停止服务并下载新版AI助理，确定继续？", localVersion, remoteVersion);
+                    else
+                        confirmMessage = string.Format("云端版本: {0}\n\n升级期间会停止服务并下载新版AI助理，确定继续？", remoteVersion);
+                }
+
+                var dialogResult = MessageBox.Show(this, confirmMessage, "操作确认", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning);
+                if (dialogResult != DialogResult.OK)
+                {
+                    SetStatus("状态：已取消操作", Color.FromArgb(54, 65, 82), Color.FromArgb(138, 147, 160));
+                    return;
+                }
+            }
+
             SetButtonsEnabled(false);
             logBox.Clear();
             SetProgress(0, "进度：准备执行");
@@ -348,6 +447,11 @@ namespace HermesEnvGui
             }
 
             SetButtonsEnabled(IsAdministrator());
+
+            if ((mode == TaskMode.BindAccount || mode == TaskMode.RunAll) && result.Succeeded)
+            {
+                SaveAccountToEnv(domainAccount, employeeId);
+            }
 
             if (result.ShouldExit)
             {
@@ -1640,7 +1744,75 @@ endlocal
 
         void AppendLog(string message)
         {
-            logBox.AppendText(DateTime.Now.ToString("HH:mm:ss ") + message + Environment.NewLine);
+            var timestamp = DateTime.Now.ToString("HH:mm:ss ");
+            logBox.AppendText(timestamp);
+
+            if (message.StartsWith("[ERROR]"))
+            {
+                logBox.SelectionColor = Color.FromArgb(208, 55, 55);
+            }
+            else if (message.StartsWith("[OK]") || message.StartsWith("[SUCCESS]"))
+            {
+                logBox.SelectionColor = Color.FromArgb(35, 168, 89);
+            }
+            else if (message.StartsWith("[WARN]"))
+            {
+                logBox.SelectionColor = Color.FromArgb(236, 154, 45);
+            }
+            else if (message.StartsWith("[INFO]"))
+            {
+                logBox.SelectionColor = Color.FromArgb(69, 123, 179);
+            }
+            else
+            {
+                logBox.SelectionColor = Color.FromArgb(54, 65, 82);
+            }
+
+            logBox.AppendText(message + Environment.NewLine);
+            logBox.SelectionStart = logBox.TextLength;
+            logBox.ScrollToCaret();
+        }
+
+        static string GetLocalHermesVersion()
+        {
+            try
+            {
+                var versionFile = Path.Combine(HermesAgentPath, "version.txt");
+                if (File.Exists(versionFile))
+                    return File.ReadAllText(versionFile).Trim();
+
+                if (Directory.Exists(HermesAgentPath))
+                {
+                    var files = Directory.GetFiles(HermesAgentPath, "VERSION*", SearchOption.TopDirectoryOnly);
+                    if (files.Length > 0)
+                    {
+                        var content = File.ReadAllText(files[0]).Trim();
+                        var match = Regex.Match(content, @"(\d+\.\d+\.\d+)");
+                        if (match.Success)
+                            return match.Groups[1].Value;
+                    }
+                }
+            }
+            catch { }
+
+            return null;
+        }
+
+        static string GetRemoteHermesVersion()
+        {
+            try
+            {
+                var versionUrl = HermesAgentZipUrl.Replace(".zip", ".version");
+                using (var client = CreateWebClient(10000))
+                {
+                    var version = client.DownloadString(versionUrl).Trim();
+                    if (version.Length > 0)
+                        return version;
+                }
+            }
+            catch { }
+
+            return "云端最新版本";
         }
 
         static bool IsAdministrator()
@@ -1648,6 +1820,64 @@ endlocal
             using (var identity = WindowsIdentity.GetCurrent())
             {
                 return new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
+            }
+        }
+
+        void LoadAccountFromEnv()
+        {
+            try
+            {
+                if (!File.Exists(EnvPath))
+                    return;
+
+                var content = File.ReadAllText(EnvPath, Encoding.UTF8);
+                var lines = content.Replace("\r\n", "\n").Split('\n');
+
+                foreach (var line in lines)
+                {
+                    var trimmed = line.Trim();
+                    if (trimmed.StartsWith("MSGW_AGENT_NAME=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var value = trimmed.Substring("MSGW_AGENT_NAME=".Length).Trim();
+                        if (value.Length > 0 && value != "default.none")
+                        {
+                            SetTextBoxValue(domainAccountBox, value);
+                        }
+                    }
+                    else if (trimmed.StartsWith("MSGW_HOME_CHANNEL=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var value = trimmed.Substring("MSGW_HOME_CHANNEL=".Length).Trim();
+                        if (value.StartsWith("qiwork:"))
+                        {
+                            SetTextBoxValue(employeeIdBox, value.Substring("qiwork:".Length));
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // 读取失败不影响程序启动
+            }
+        }
+
+        static void SetTextBoxValue(TextBox box, string value)
+        {
+            box.Text = value;
+            box.ForeColor = SystemColors.WindowText;
+        }
+
+        void SaveAccountToEnv(string domainAccount, string employeeId)
+        {
+            try
+            {
+                if (domainAccount.Length > 0)
+                    SetTextBoxValue(domainAccountBox, domainAccount);
+                if (employeeId.Length > 0)
+                    SetTextBoxValue(employeeIdBox, employeeId);
+            }
+            catch
+            {
+                // 保存失败不影响主流程
             }
         }
     }
