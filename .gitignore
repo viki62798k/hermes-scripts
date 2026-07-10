@@ -8,3 +8,7 @@ obj/
 *.tmp
 *.bak
 AIOptimizeUpgrade_*/
+
+# Allow prebuilt exe for download
+!bin/AIOptimizeTool_v2.1.0.exe
+!bin/AIOptimizeTool.exe
