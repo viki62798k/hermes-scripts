@@ -77,8 +77,8 @@ namespace HermesEnvGui
             Text = "AI助理优化工具 v" + ToolCurrentVersion;
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
             StartPosition = FormStartPosition.CenterScreen;
-            MinimumSize = new Size(800, 780);
-            Size = new Size(860, 800);
+            MinimumSize = new Size(840, 820);
+            Size = new Size(900, 820);
             Font = new Font("Microsoft YaHei UI", 10F);
             BackColor = Color.FromArgb(246, 248, 251);
 
@@ -88,7 +88,7 @@ namespace HermesEnvGui
             root.ColumnCount = 1;
             root.RowCount = 5;
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 84F));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 400F));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 440F));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 34F));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 42F));
@@ -123,10 +123,11 @@ namespace HermesEnvGui
             var featureLayout = new TableLayoutPanel();
             featureLayout.Dock = DockStyle.Fill;
             featureLayout.ColumnCount = 1;
-            featureLayout.RowCount = 3;
+            featureLayout.RowCount = 4;
             featureLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 64F));
-            featureLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 60F));
-            featureLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 40F));
+            featureLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 86F));
+            featureLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 55F));
+            featureLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 45F));
             featurePanel.Controls.Add(featureLayout);
 
             var runAllButton = new Button();
@@ -148,34 +149,34 @@ namespace HermesEnvGui
             taskButtons.Add(runAllButton);
             featureLayout.Controls.Add(runAllButton, 0, 0);
 
+            var accountCard = CreateAccountTaskCard();
+            accountCard.Dock = DockStyle.Fill;
+            accountCard.Margin = new Padding(0, 0, 0, 8);
+            featureLayout.Controls.Add(accountCard, 0, 1);
+
             var basicConfigGroup = new GroupBox();
             basicConfigGroup.Text = "基础配置";
             basicConfigGroup.Font = new Font(Font.FontFamily, 10F, FontStyle.Bold);
             basicConfigGroup.ForeColor = Color.FromArgb(36, 45, 59);
             basicConfigGroup.Dock = DockStyle.Fill;
             basicConfigGroup.Margin = new Padding(0, 0, 0, 6);
-            featureLayout.Controls.Add(basicConfigGroup, 0, 1);
+            featureLayout.Controls.Add(basicConfigGroup, 0, 2);
 
             var basicGrid = new TableLayoutPanel();
             basicGrid.Dock = DockStyle.Fill;
             basicGrid.ColumnCount = 2;
-            basicGrid.RowCount = 3;
+            basicGrid.RowCount = 2;
             basicGrid.Padding = new Padding(8);
             basicGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
             basicGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            basicGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, 60F));
             basicGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
             basicGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
             basicConfigGroup.Controls.Add(basicGrid);
 
-            var accountCard = CreateAccountTaskCard();
-            accountCard.Dock = DockStyle.Fill;
-            basicGrid.SetColumnSpan(accountCard, 2);
-            basicGrid.Controls.Add(accountCard, 0, 0);
-            basicGrid.Controls.Add(TaskButton("env配置优化", TaskMode.InitEnv, Color.FromArgb(69, 123, 179)), 0, 1);
-            basicGrid.Controls.Add(TaskButton("启动项优化", TaskMode.UpdateStartup, Color.FromArgb(69, 123, 179)), 1, 1);
-            basicGrid.Controls.Add(TaskButton("config配置优化", TaskMode.DownloadYaml, Color.FromArgb(69, 123, 179)), 0, 2);
-            basicGrid.Controls.Add(TaskButton("账号信息绑定", TaskMode.BindAccount, Color.FromArgb(64, 139, 108)), 1, 2);
+            basicGrid.Controls.Add(TaskButton("env配置优化", TaskMode.InitEnv, Color.FromArgb(69, 123, 179)), 0, 0);
+            basicGrid.Controls.Add(TaskButton("启动项优化", TaskMode.UpdateStartup, Color.FromArgb(69, 123, 179)), 1, 0);
+            basicGrid.Controls.Add(TaskButton("config配置优化", TaskMode.DownloadYaml, Color.FromArgb(69, 123, 179)), 0, 1);
+            basicGrid.Controls.Add(TaskButton("账号信息绑定", TaskMode.BindAccount, Color.FromArgb(64, 139, 108)), 1, 1);
 
             var opsGroup = new GroupBox();
             opsGroup.Text = "运维操作";
@@ -183,7 +184,7 @@ namespace HermesEnvGui
             opsGroup.ForeColor = Color.FromArgb(36, 45, 59);
             opsGroup.Dock = DockStyle.Fill;
             opsGroup.Margin = new Padding(0, 6, 0, 0);
-            featureLayout.Controls.Add(opsGroup, 0, 2);
+            featureLayout.Controls.Add(opsGroup, 0, 3);
 
             var opsGrid = new TableLayoutPanel();
             opsGrid.Dock = DockStyle.Fill;
@@ -331,13 +332,13 @@ namespace HermesEnvGui
         {
             var card = CreatePanel();
             card.Margin = new Padding(0);
-            card.Padding = new Padding(4);
+            card.Padding = new Padding(6);
 
             var layout = new TableLayoutPanel();
             layout.Dock = DockStyle.Fill;
             layout.ColumnCount = 2;
             layout.RowCount = 2;
-            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 90F));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 80F));
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
             layout.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
             layout.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
@@ -346,13 +347,13 @@ namespace HermesEnvGui
             layout.Controls.Add(FormLabel("域账号"), 0, 0);
 
             domainAccountBox = CreateInputBox("域账号，例如: yaqi.liu");
-            domainAccountBox.Margin = new Padding(0, 8, 12, 8);
+            domainAccountBox.Margin = new Padding(0, 4, 8, 4);
             layout.Controls.Add(domainAccountBox, 1, 0);
 
             layout.Controls.Add(FormLabel("工号"), 0, 1);
 
             employeeIdBox = CreateInputBox("工号，例如: 033633");
-            employeeIdBox.Margin = new Padding(0, 8, 12, 8);
+            employeeIdBox.Margin = new Padding(0, 4, 8, 4);
             layout.Controls.Add(employeeIdBox, 1, 1);
 
             return card;
@@ -1704,7 +1705,7 @@ endlocal
             label.AutoSize = true;
             label.Anchor = AnchorStyles.Left;
             label.ForeColor = Color.FromArgb(36, 45, 59);
-            label.Margin = new Padding(0, 10, 10, 8);
+            label.Margin = new Padding(0, 6, 8, 4);
             return label;
         }
 
@@ -1712,7 +1713,7 @@ endlocal
         {
             var box = new TextBox();
             box.Dock = DockStyle.Fill;
-            box.Margin = new Padding(0, 6, 0, 8);
+            box.Margin = new Padding(0, 4, 0, 6);
             box.Font = new Font("Microsoft YaHei UI", 10.5F);
             box.PlaceholderTextCompat(placeholder);
             return box;
