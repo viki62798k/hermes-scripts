@@ -25,6 +25,96 @@ namespace HermesEnvGui
         }
     }
 
+    enum ButtonKind
+    {
+        Primary,
+        Success,
+        Danger,
+        Clean,
+        Upgrade
+    }
+
+    static class Theme
+    {
+        public static Color AppBg = Color.FromArgb(245, 247, 250);
+        public static Color CardBg = Color.White;
+        public static Color CardBorder = Color.FromArgb(226, 232, 240);
+        public static Color Divider = Color.FromArgb(230, 235, 242);
+        public static Color TextPrimary = Color.FromArgb(30, 41, 59);
+        public static Color TextSecondary = Color.FromArgb(100, 116, 139);
+        public static Color TextMuted = Color.FromArgb(148, 163, 184);
+        public static Color HeaderBg = Color.FromArgb(232, 242, 253);
+        public static Color HeaderText = Color.FromArgb(30, 64, 110);
+
+        public static Color BackColor(ButtonKind kind)
+        {
+            switch (kind)
+            {
+                case ButtonKind.Primary: return Color.FromArgb(37, 99, 235);
+                case ButtonKind.Success: return Color.FromArgb(22, 163, 124);
+                case ButtonKind.Danger: return Color.FromArgb(203, 72, 72);
+                case ButtonKind.Clean: return Color.FromArgb(124, 110, 196);
+                case ButtonKind.Upgrade: return Color.FromArgb(13, 148, 165);
+                default: return Color.FromArgb(37, 99, 235);
+            }
+        }
+
+        public static Color HoverColor(ButtonKind kind)
+        {
+            switch (kind)
+            {
+                case ButtonKind.Primary: return Color.FromArgb(59, 130, 246);
+                case ButtonKind.Success: return Color.FromArgb(19, 145, 110);
+                case ButtonKind.Danger: return Color.FromArgb(220, 95, 95);
+                case ButtonKind.Clean: return Color.FromArgb(140, 127, 209);
+                case ButtonKind.Upgrade: return Color.FromArgb(24, 165, 182);
+                default: return Color.FromArgb(59, 130, 246);
+            }
+        }
+
+        public static Color DownColor(ButtonKind kind)
+        {
+            switch (kind)
+            {
+                case ButtonKind.Primary: return Color.FromArgb(29, 78, 200);
+                case ButtonKind.Success: return Color.FromArgb(16, 122, 92);
+                case ButtonKind.Danger: return Color.FromArgb(165, 55, 55);
+                case ButtonKind.Clean: return Color.FromArgb(104, 92, 170);
+                case ButtonKind.Upgrade: return Color.FromArgb(11, 125, 140);
+                default: return Color.FromArgb(29, 78, 200);
+            }
+        }
+    }
+
+    static class GraphicsExtension
+    {
+        public static void FillRoundedRectangle(Graphics g, Rectangle r, int radius, Color c)
+        {
+            using (var path = RoundedPath(r, radius))
+            using (var brush = new SolidBrush(c))
+                g.FillPath(brush, path);
+        }
+
+        public static void DrawRoundedRectangle(Graphics g, Rectangle r, int radius, Color c, int w)
+        {
+            using (var path = RoundedPath(r, radius))
+            using (var pen = new Pen(c, w))
+                g.DrawPath(pen, path);
+        }
+
+        static GraphicsPath RoundedPath(Rectangle r, int radius)
+        {
+            int d = radius * 2;
+            var p = new GraphicsPath();
+            p.AddArc(r.X, r.Y, d, d, 180, 90);
+            p.AddArc(r.Right - d, r.Y, d, d, 270, 90);
+            p.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
+            p.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
+            p.CloseFigure();
+            return p;
+        }
+    }
+
     enum TaskMode
     {
         InitEnv,
@@ -62,8 +152,8 @@ namespace HermesEnvGui
         const string ToolVersionUrl = "https://mirrors.qilu-pharma.com/ps-scripts/AIOptimizeTool.version";
         const string ToolExeUrl = "https://mirrors.qilu-pharma.com/ps-scripts/AIOptimizeTool.exe";
 
-        TextBox domainAccountBox;
-        TextBox employeeIdBox;
+        RoundedTextBox domainAccountBox;
+        RoundedTextBox employeeIdBox;
         readonly RichTextBox logBox;
         readonly Label statusLabel;
         readonly StatusLamp statusLamp;
@@ -77,132 +167,130 @@ namespace HermesEnvGui
             Text = "AI助理优化工具 v" + ToolCurrentVersion;
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
             StartPosition = FormStartPosition.CenterScreen;
-            MinimumSize = new Size(840, 820);
-            Size = new Size(900, 820);
+            MinimumSize = new Size(900, 860);
+            Size = new Size(960, 900);
             Font = new Font("Microsoft YaHei UI", 10F);
-            BackColor = Color.FromArgb(246, 248, 251);
+            BackColor = Theme.AppBg;
+            AutoScaleMode = AutoScaleMode.Dpi;
 
             var root = new TableLayoutPanel();
             root.Dock = DockStyle.Fill;
-            root.Padding = new Padding(18);
+            root.Padding = new Padding(20);
             root.ColumnCount = 1;
-            root.RowCount = 5;
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 84F));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 440F));
-            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 34F));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 42F));
+            root.RowCount = 6;
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 88F));
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 48F));
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 52F));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 36F));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 1F));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 48F));
             Controls.Add(root);
 
-            var header = new Panel();
+            var header = new CardPanel();
+            header.DrawShadow = false;
+            header.BorderColor = Color.FromArgb(220, 235, 248);
             header.Dock = DockStyle.Fill;
-            header.BackColor = Color.FromArgb(218, 238, 252);
+            header.BackColor = Theme.HeaderBg;
             header.Padding = new Padding(18, 10, 18, 10);
-            header.Margin = new Padding(0, 0, 0, 12);
+            header.Margin = new Padding(0, 0, 0, 14);
             root.Controls.Add(header, 0, 0);
 
             var headerIcon = new WrenchBadge();
-            headerIcon.Location = new Point(20, 14);
+            headerIcon.Location = new Point(22, 16);
             headerIcon.Size = new Size(44, 44);
             header.Controls.Add(headerIcon);
 
             var title = new Label();
             title.AutoSize = true;
             title.Text = "AI助理优化工具 v" + ToolCurrentVersion;
-            title.Font = new Font(Font.FontFamily, 20F, FontStyle.Bold);
-            title.ForeColor = Color.FromArgb(28, 72, 112);
-            title.Location = new Point(78, 19);
+            title.Font = new Font(Font.FontFamily, 19F, FontStyle.Bold);
+            title.ForeColor = Theme.HeaderText;
+            title.Location = new Point(80, 21);
             header.Controls.Add(title);
 
-            var featurePanel = CreatePanel();
+            var featurePanel = new CardPanel();
             featurePanel.Dock = DockStyle.Fill;
-            featurePanel.Padding = new Padding(12);
-            featurePanel.Margin = new Padding(0, 0, 0, 12);
+            featurePanel.Padding = new Padding(14);
+            featurePanel.Margin = new Padding(0, 0, 0, 14);
             root.Controls.Add(featurePanel, 0, 1);
 
             var featureLayout = new TableLayoutPanel();
             featureLayout.Dock = DockStyle.Fill;
             featureLayout.ColumnCount = 1;
             featureLayout.RowCount = 4;
-            featureLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 64F));
-            featureLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 86F));
+            featureLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 54F));
+            featureLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 82F));
             featureLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 55F));
             featureLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 45F));
             featurePanel.Controls.Add(featureLayout);
 
-            var runAllButton = new Button();
+            var runAllButton = new ThemeButton();
             runAllButton.Text = "一键优化";
             runAllButton.Dock = DockStyle.Fill;
-            runAllButton.BackColor = Color.FromArgb(35, 168, 89);
-            runAllButton.ForeColor = Color.White;
-            runAllButton.FlatStyle = FlatStyle.Flat;
-            runAllButton.FlatAppearance.BorderSize = 0;
-            runAllButton.FlatAppearance.MouseOverBackColor = ControlPaint.Light(Color.FromArgb(35, 168, 89));
-            runAllButton.FlatAppearance.MouseDownBackColor = ControlPaint.Dark(Color.FromArgb(35, 168, 89));
+            runAllButton.Kind = ButtonKind.Success;
             runAllButton.Font = new Font(Font.FontFamily, 14F, FontStyle.Bold);
-            runAllButton.MinimumSize = new Size(0, 48);
-            runAllButton.Margin = new Padding(0, 0, 0, 8);
-            runAllButton.TextAlign = ContentAlignment.MiddleCenter;
-            runAllButton.UseVisualStyleBackColor = false;
+            runAllButton.MinimumSize = new Size(0, 50);
+            runAllButton.Margin = new Padding(0, 0, 0, 10);
+            runAllButton.CornerRadius = 10;
             runAllButton.Tag = TaskMode.RunAll;
-            runAllButton.Click += async (sender, args) => await RunSelectedTaskAsync((TaskMode)((Button)sender).Tag);
+            runAllButton.Click += async (sender, args) => await RunSelectedTaskAsync((TaskMode)((ThemeButton)sender).Tag);
             taskButtons.Add(runAllButton);
             featureLayout.Controls.Add(runAllButton, 0, 0);
 
             var accountCard = CreateAccountTaskCard();
             accountCard.Dock = DockStyle.Fill;
-            accountCard.Margin = new Padding(0, 0, 0, 8);
+            accountCard.Margin = new Padding(0, 0, 0, 10);
             featureLayout.Controls.Add(accountCard, 0, 1);
 
-            var basicConfigGroup = new GroupBox();
-            basicConfigGroup.Text = "基础配置";
-            basicConfigGroup.Font = new Font(Font.FontFamily, 10F, FontStyle.Bold);
-            basicConfigGroup.ForeColor = Color.FromArgb(36, 45, 59);
+            var basicConfigGroup = new CardPanel();
+            basicConfigGroup.Title = "基础配置";
+            basicConfigGroup.AccentColor = Theme.BackColor(ButtonKind.Primary);
             basicConfigGroup.Dock = DockStyle.Fill;
-            basicConfigGroup.Margin = new Padding(0, 0, 0, 6);
+            basicConfigGroup.Margin = new Padding(0, 0, 0, 10);
+            basicConfigGroup.Padding = new Padding(14, 40, 14, 14);
             featureLayout.Controls.Add(basicConfigGroup, 0, 2);
 
             var basicGrid = new TableLayoutPanel();
             basicGrid.Dock = DockStyle.Fill;
             basicGrid.ColumnCount = 2;
             basicGrid.RowCount = 2;
-            basicGrid.Padding = new Padding(8);
+            basicGrid.Padding = new Padding(4);
             basicGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
             basicGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
             basicGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
             basicGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
             basicConfigGroup.Controls.Add(basicGrid);
 
-            basicGrid.Controls.Add(TaskButton("env配置优化", TaskMode.InitEnv, Color.FromArgb(69, 123, 179)), 0, 0);
-            basicGrid.Controls.Add(TaskButton("启动项优化", TaskMode.UpdateStartup, Color.FromArgb(69, 123, 179)), 1, 0);
-            basicGrid.Controls.Add(TaskButton("config配置优化", TaskMode.DownloadYaml, Color.FromArgb(69, 123, 179)), 0, 1);
-            basicGrid.Controls.Add(TaskButton("账号信息绑定", TaskMode.BindAccount, Color.FromArgb(64, 139, 108)), 1, 1);
+            basicGrid.Controls.Add(TaskButton("env配置优化", TaskMode.InitEnv, ButtonKind.Primary), 0, 0);
+            basicGrid.Controls.Add(TaskButton("启动项优化", TaskMode.UpdateStartup, ButtonKind.Primary), 1, 0);
+            basicGrid.Controls.Add(TaskButton("config配置优化", TaskMode.DownloadYaml, ButtonKind.Primary), 0, 1);
+            basicGrid.Controls.Add(TaskButton("账号信息绑定", TaskMode.BindAccount, ButtonKind.Primary), 1, 1);
 
-            var opsGroup = new GroupBox();
-            opsGroup.Text = "运维操作";
-            opsGroup.Font = new Font(Font.FontFamily, 10F, FontStyle.Bold);
-            opsGroup.ForeColor = Color.FromArgb(36, 45, 59);
+            var opsGroup = new CardPanel();
+            opsGroup.Title = "运维操作";
+            opsGroup.AccentColor = Theme.BackColor(ButtonKind.Upgrade);
             opsGroup.Dock = DockStyle.Fill;
-            opsGroup.Margin = new Padding(0, 6, 0, 0);
+            opsGroup.Margin = new Padding(0, 10, 0, 0);
+            opsGroup.Padding = new Padding(14, 40, 14, 14);
             featureLayout.Controls.Add(opsGroup, 0, 3);
 
             var opsGrid = new TableLayoutPanel();
             opsGrid.Dock = DockStyle.Fill;
             opsGrid.ColumnCount = 2;
             opsGrid.RowCount = 1;
-            opsGrid.Padding = new Padding(8);
+            opsGrid.Padding = new Padding(4);
             opsGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
             opsGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
             opsGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             opsGroup.Controls.Add(opsGrid);
 
-            opsGrid.Controls.Add(TaskButton("缓存清理", TaskMode.ClearCache, Color.FromArgb(112, 101, 166)), 0, 0);
-            opsGrid.Controls.Add(TaskButton("AI助理升级", TaskMode.SystemUpgrade, Color.FromArgb(50, 139, 158)), 1, 0);
+            opsGrid.Controls.Add(TaskButton("缓存清理", TaskMode.ClearCache, ButtonKind.Clean), 0, 0);
+            opsGrid.Controls.Add(TaskButton("AI助理升级", TaskMode.SystemUpgrade, ButtonKind.Upgrade), 1, 0);
 
-            var logPanel = CreatePanel();
+            var logPanel = new CardPanel();
             logPanel.Dock = DockStyle.Fill;
-            logPanel.Padding = new Padding(10);
-            logPanel.Margin = new Padding(0, 0, 0, 10);
+            logPanel.Padding = new Padding(12);
+            logPanel.Margin = new Padding(0, 0, 0, 12);
             root.Controls.Add(logPanel, 0, 2);
 
             var logLayout = new TableLayoutPanel();
@@ -217,14 +305,14 @@ namespace HermesEnvGui
             logTitle.Text = "执行日志";
             logTitle.AutoSize = true;
             logTitle.Font = new Font(Font.FontFamily, 10.5F, FontStyle.Bold);
-            logTitle.ForeColor = Color.FromArgb(36, 45, 59);
+            logTitle.ForeColor = Theme.TextPrimary;
             logLayout.Controls.Add(logTitle, 0, 0);
 
             logBox = new RichTextBox();
             logBox.Dock = DockStyle.Fill;
             logBox.ReadOnly = true;
             logBox.ScrollBars = RichTextBoxScrollBars.Vertical;
-            logBox.BorderStyle = BorderStyle.FixedSingle;
+            logBox.BorderStyle = BorderStyle.None;
             logBox.BackColor = Color.FromArgb(252, 253, 255);
             logBox.Font = new Font("Consolas", 9F);
             logBox.DetectUrls = false;
@@ -260,10 +348,17 @@ namespace HermesEnvGui
             progressLayout.Margin = new Padding(0, 0, 0, 8);
             root.Controls.Add(progressLayout, 0, 3);
 
+            var footerDivider = new Panel();
+            footerDivider.Dock = DockStyle.Fill;
+            footerDivider.BackColor = Theme.Divider;
+            footerDivider.Height = 1;
+            footerDivider.Margin = new Padding(0, 0, 0, 6);
+            root.Controls.Add(footerDivider, 0, 4);
+
             progressLabel = new Label();
             progressLabel.AutoSize = true;
             progressLabel.Text = "进度：等待执行";
-            progressLabel.ForeColor = Color.FromArgb(54, 65, 82);
+            progressLabel.ForeColor = Theme.TextSecondary;
             progressLabel.Anchor = AnchorStyles.Left;
             progressLayout.Controls.Add(progressLabel, 0, 0);
 
@@ -284,7 +379,7 @@ namespace HermesEnvGui
             footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92F));
             footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92F));
             footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92F));
-            root.Controls.Add(footer, 0, 4);
+            root.Controls.Add(footer, 0, 5);
 
             statusLamp = new StatusLamp();
             statusLamp.Dock = DockStyle.Fill;
@@ -294,20 +389,20 @@ namespace HermesEnvGui
             statusLabel = new Label();
             statusLabel.AutoSize = true;
             statusLabel.Text = IsAdministrator() ? "状态：等待执行" : "状态：当前未以管理员身份运行，请重新以管理员权限启动";
-            statusLabel.ForeColor = IsAdministrator() ? Color.FromArgb(54, 65, 82) : Color.Firebrick;
+            statusLabel.ForeColor = IsAdministrator() ? Theme.TextSecondary : Color.Firebrick;
             statusLabel.Anchor = AnchorStyles.Left;
             footer.Controls.Add(statusLabel, 1, 0);
 
-            var upgradeButton = SmallTaskButton("工具升级", TaskMode.ToolUpgrade, Color.FromArgb(69, 123, 179));
+            var upgradeButton = SmallTaskButton("工具升级", TaskMode.ToolUpgrade, ButtonKind.Upgrade);
             footer.Controls.Add(upgradeButton, 2, 0);
 
-            var startButton = SmallTaskButton("启动服务", TaskMode.StartService, Color.FromArgb(30, 120, 82));
+            var startButton = SmallTaskButton("启动服务", TaskMode.StartService, ButtonKind.Success);
             footer.Controls.Add(startButton, 3, 0);
 
-            var stopButton = SmallTaskButton("停止服务", TaskMode.StopService, Color.FromArgb(142, 75, 75));
+            var stopButton = SmallTaskButton("停止服务", TaskMode.StopService, ButtonKind.Danger);
             footer.Controls.Add(stopButton, 4, 0);
 
-            var restartButton = SmallTaskButton("重启服务", TaskMode.RestartService, Color.FromArgb(35, 128, 150));
+            var restartButton = SmallTaskButton("重启服务", TaskMode.RestartService, ButtonKind.Primary);
             footer.Controls.Add(restartButton, 5, 0);
 
             if (!IsAdministrator())
@@ -319,26 +414,28 @@ namespace HermesEnvGui
             LoadAccountFromEnv();
         }
 
-        Button SmallTaskButton(string text, TaskMode mode, Color color)
+        ThemeButton SmallTaskButton(string text, TaskMode mode, ButtonKind kind)
         {
-            var button = TaskButton(text, mode, color);
+            var button = TaskButton(text, mode, kind);
             button.Font = new Font(Font.FontFamily, 9.5F, FontStyle.Bold);
-            button.MinimumSize = new Size(82, 30);
-            button.Margin = new Padding(6, 4, 0, 4);
+            button.MinimumSize = new Size(84, 32);
+            button.Margin = new Padding(8, 4, 0, 4);
             return button;
         }
 
-        Panel CreateAccountTaskCard()
+        CardPanel CreateAccountTaskCard()
         {
-            var card = CreatePanel();
-            card.Margin = new Padding(0);
-            card.Padding = new Padding(6);
+            var card = new CardPanel();
+            card.Title = "账号信息";
+            card.AccentColor = Theme.BackColor(ButtonKind.Primary);
+            card.Dock = DockStyle.Fill;
+            card.Padding = new Padding(12, 40, 12, 12);
 
             var layout = new TableLayoutPanel();
             layout.Dock = DockStyle.Fill;
             layout.ColumnCount = 2;
             layout.RowCount = 2;
-            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 80F));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 72F));
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
             layout.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
             layout.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
@@ -347,44 +444,38 @@ namespace HermesEnvGui
             layout.Controls.Add(FormLabel("域账号"), 0, 0);
 
             domainAccountBox = CreateInputBox("域账号，例如: yaqi.liu");
-            domainAccountBox.Margin = new Padding(0, 4, 8, 4);
+            domainAccountBox.Margin = new Padding(0, 2, 8, 2);
             layout.Controls.Add(domainAccountBox, 1, 0);
 
             layout.Controls.Add(FormLabel("工号"), 0, 1);
 
             employeeIdBox = CreateInputBox("工号，例如: 033633");
-            employeeIdBox.Margin = new Padding(0, 4, 8, 4);
+            employeeIdBox.Margin = new Padding(0, 2, 8, 2);
             layout.Controls.Add(employeeIdBox, 1, 1);
 
             return card;
         }
 
-        Button TaskButton(string text, TaskMode mode, Color color)
+        ThemeButton TaskButton(string text, TaskMode mode, ButtonKind kind)
         {
-            var button = new Button();
+            var button = new ThemeButton();
             button.Text = text;
             button.Dock = DockStyle.Fill;
-            button.BackColor = color;
-            button.ForeColor = Color.White;
-            button.FlatStyle = FlatStyle.Flat;
-            button.FlatAppearance.BorderSize = 0;
-            button.FlatAppearance.MouseOverBackColor = ControlPaint.Light(color);
-            button.FlatAppearance.MouseDownBackColor = ControlPaint.Dark(color);
+            button.Kind = kind;
             button.Font = new Font(Font.FontFamily, 11.5F, FontStyle.Bold);
             button.Margin = new Padding(8);
-            button.MinimumSize = new Size(120, 42);
-            button.TextAlign = ContentAlignment.MiddleCenter;
-            button.UseVisualStyleBackColor = false;
+            button.MinimumSize = new Size(120, 44);
+            button.CornerRadius = 8;
             button.Tag = mode;
-            button.Click += async (sender, args) => await RunSelectedTaskAsync((TaskMode)((Button)sender).Tag);
+            button.Click += async (sender, args) => await RunSelectedTaskAsync((TaskMode)((ThemeButton)sender).Tag);
             taskButtons.Add(button);
             return button;
         }
 
         async Task RunSelectedTaskAsync(TaskMode mode)
         {
-            var domainAccount = domainAccountBox.RealText();
-            var employeeId = employeeIdBox.RealText();
+            var domainAccount = domainAccountBox.RealText;
+            var employeeId = employeeIdBox.RealText;
 
             if ((mode == TaskMode.BindAccount || mode == TaskMode.RunAll) &&
                 (domainAccount.Length == 0 || employeeId.Length == 0))
@@ -1704,18 +1795,16 @@ endlocal
             label.Text = text;
             label.AutoSize = true;
             label.Anchor = AnchorStyles.Left;
-            label.ForeColor = Color.FromArgb(36, 45, 59);
-            label.Margin = new Padding(0, 6, 8, 4);
+            label.ForeColor = Theme.TextSecondary;
+            label.Margin = new Padding(0, 8, 8, 4);
             return label;
         }
 
-        static TextBox CreateInputBox(string placeholder)
+        static RoundedTextBox CreateInputBox(string placeholder)
         {
-            var box = new TextBox();
+            var box = new RoundedTextBox();
             box.Dock = DockStyle.Fill;
-            box.Margin = new Padding(0, 4, 0, 6);
-            box.Font = new Font("Microsoft YaHei UI", 10.5F);
-            box.PlaceholderTextCompat(placeholder);
+            box.PlaceholderText = placeholder;
             return box;
         }
 
@@ -1861,10 +1950,9 @@ endlocal
             }
         }
 
-        static void SetTextBoxValue(TextBox box, string value)
+        static void SetTextBoxValue(RoundedTextBox box, string value)
         {
-            box.Text = value;
-            box.ForeColor = SystemColors.WindowText;
+            box.SetRealText(value);
         }
 
         void SaveAccountToEnv(string domainAccount, string employeeId)
@@ -1880,6 +1968,196 @@ endlocal
             {
                 // 保存失败不影响主流程
             }
+        }
+    }
+
+    sealed class CardPanel : Panel
+    {
+        public int CornerRadius = 10;
+        public Color BorderColor = Theme.CardBorder;
+        public int BorderWidth = 1;
+        public string Title = "";
+        public Color TitleColor = Theme.TextPrimary;
+        public Color AccentColor = Theme.BackColor(ButtonKind.Primary);
+        public int TitleHeight = 36;
+        public bool DrawShadow = true;
+
+        public CardPanel()
+        {
+            BackColor = Theme.CardBg;
+            BorderStyle = BorderStyle.None;
+            SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint
+                   | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            int w = ClientSize.Width;
+            int h = ClientSize.Height;
+            var rect = new Rectangle(0, 0, w - 2, h - 3);
+
+            if (DrawShadow)
+            {
+                GraphicsExtension.FillRoundedRectangle(e.Graphics,
+                    new Rectangle(2, 4, w - 4, h - 6), CornerRadius,
+                    Color.FromArgb(20, 18, 30, 50));
+            }
+
+            GraphicsExtension.FillRoundedRectangle(e.Graphics, rect, CornerRadius, BackColor);
+            GraphicsExtension.DrawRoundedRectangle(e.Graphics, rect, CornerRadius, BorderColor, BorderWidth);
+
+            if (Title.Length > 0)
+            {
+                GraphicsExtension.FillRoundedRectangle(e.Graphics,
+                    new Rectangle(14, (TitleHeight - 14) / 2, 4, 14), 2, AccentColor);
+                using (var brush = new SolidBrush(TitleColor))
+                using (var font = new Font("Microsoft YaHei UI", 10.5F, FontStyle.Bold))
+                {
+                    e.Graphics.DrawString(Title, font, brush, 26, (TitleHeight - font.Height) / 2 + 1);
+                }
+            }
+        }
+    }
+
+    sealed class ThemeButton : Button
+    {
+        public ButtonKind Kind = ButtonKind.Primary;
+        public int CornerRadius = 8;
+
+        public ThemeButton()
+        {
+            FlatStyle = FlatStyle.Flat;
+            FlatAppearance.BorderSize = 0;
+            FlatAppearance.MouseOverBackColor = Color.Transparent;
+            FlatAppearance.MouseDownBackColor = Color.Transparent;
+            UseVisualStyleBackColor = false;
+            ForeColor = Color.White;
+            SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint
+                   | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+        }
+
+        protected override void OnMouseEnter(EventArgs e) { base.OnMouseEnter(e); Invalidate(); }
+        protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); Invalidate(); }
+        protected override void OnMouseDown(MouseEventArgs e) { base.OnMouseDown(e); Invalidate(); }
+        protected override void OnMouseUp(MouseEventArgs e) { base.OnMouseUp(e); Invalidate(); }
+        protected override void OnEnabledChanged(EventArgs e) { base.OnEnabledChanged(e); Invalidate(); }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            var c = Theme.BackColor(Kind);
+            if (!Enabled)
+                c = ControlPaint.Light(c, 0.6f);
+            else if (MouseButtons == MouseButtons.Left && ClientRectangle.Contains(PointToClient(MousePosition)))
+                c = Theme.DownColor(Kind);
+            else if (IsHover())
+                c = Theme.HoverColor(Kind);
+
+            GraphicsExtension.FillRoundedRectangle(e.Graphics,
+                new Rectangle(0, 0, Width - 1, Height - 1), CornerRadius, c);
+            TextRenderer.DrawText(e.Graphics, Text, Font, ClientRectangle,
+                ForeColor, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+        }
+
+        bool IsHover()
+        {
+            return ClientRectangle.Contains(PointToClient(MousePosition));
+        }
+    }
+
+    sealed class RoundedTextBox : UserControl
+    {
+        readonly TextBox inner = new TextBox();
+        string placeholder = "";
+        public int CornerRadius = 8;
+        public Color BorderColor = Color.FromArgb(203, 213, 225);
+        public Color FocusBorderColor = Theme.BackColor(ButtonKind.Primary);
+
+        public RoundedTextBox()
+        {
+            BackColor = Color.White;
+            inner.BorderStyle = BorderStyle.None;
+            inner.Dock = DockStyle.Fill;
+            inner.Font = new Font("Microsoft YaHei UI", 10.5F);
+            inner.Margin = new Padding(10, 6, 10, 6);
+            inner.GotFocus += (s, ev) =>
+            {
+                if (inner.Text == placeholder)
+                {
+                    inner.Text = "";
+                    inner.ForeColor = SystemColors.WindowText;
+                }
+                Invalidate();
+            };
+            inner.LostFocus += (s, ev) =>
+            {
+                if (string.IsNullOrEmpty(inner.Text) && !string.IsNullOrEmpty(placeholder))
+                {
+                    inner.Text = placeholder;
+                    inner.ForeColor = Theme.TextMuted;
+                }
+                Invalidate();
+            };
+            inner.TextChanged += (s, ev) =>
+            {
+                if (inner.Text != placeholder)
+                    inner.ForeColor = SystemColors.WindowText;
+                Invalidate();
+            };
+            Controls.Add(inner);
+            Padding = new Padding(1);
+            SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint
+                   | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+        }
+
+        public override string Text
+        {
+            get { return inner.Text; }
+            set { inner.Text = value; }
+        }
+
+        public string RealText
+        {
+            get { return inner.Text == placeholder ? "" : inner.Text; }
+        }
+
+        public new Font Font
+        {
+            get { return inner.Font; }
+            set { inner.Font = value; }
+        }
+
+        public string PlaceholderText
+        {
+            get { return placeholder; }
+            set
+            {
+                placeholder = value;
+                if (string.IsNullOrEmpty(inner.Text) && !string.IsNullOrEmpty(placeholder))
+                {
+                    inner.Text = placeholder;
+                    inner.ForeColor = Theme.TextMuted;
+                }
+            }
+        }
+
+        public void SetRealText(string value)
+        {
+            inner.Text = value;
+            inner.ForeColor = SystemColors.WindowText;
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            var bc = inner.Focused ? FocusBorderColor : BorderColor;
+            var rect = new Rectangle(0, 0, Width - 1, Height - 1);
+            GraphicsExtension.FillRoundedRectangle(e.Graphics, rect, CornerRadius, BackColor);
+            GraphicsExtension.DrawRoundedRectangle(e.Graphics, rect, CornerRadius, bc, 1);
         }
     }
 
