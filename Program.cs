@@ -58,7 +58,7 @@ namespace HermesEnvGui
         const string ConfigYamlUrl = "https://mirrors.qilu-pharma.com/ps-scripts/config.yaml";
         const string HermesAgentZipUrl = "https://mirrors.qilu-pharma.com/ps-scripts/hermes-agent.zip";
         const string HermesWebUiZipUrl = "https://mirrors.qilu-pharma.com/ps-scripts/hermes-web-ui.zip";
-        const string ToolCurrentVersion = "2.1.0";
+        const string ToolCurrentVersion = "2.1.1";
         const string ToolVersionUrl = "https://mirrors.qilu-pharma.com/ps-scripts/AIOptimizeTool.version";
         const string ToolExeUrl = "https://mirrors.qilu-pharma.com/ps-scripts/AIOptimizeTool.exe";
 
