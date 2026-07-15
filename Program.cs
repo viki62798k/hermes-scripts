@@ -90,32 +90,26 @@ namespace HermesEnvGui
         }
     }
 
-    static class GraphicsExtension
+
+    static class UiHelper
     {
-        public static void FillRoundedRectangle(Graphics g, Rectangle r, int radius, Color c)
+        // 圆角 Region，按钮在 DPI 缩放后会失真，所以在 Resize 事件里重算。
+        public static void ApplyRoundedRegion(Control c, int radius)
         {
-            using (var path = RoundedPath(r, radius))
-            using (var brush = new SolidBrush(c))
-                g.FillPath(brush, path);
-        }
-
-        public static void DrawRoundedRectangle(Graphics g, Rectangle r, int radius, Color c, int w)
-        {
-            using (var path = RoundedPath(r, radius))
-            using (var pen = new Pen(c, w))
-                g.DrawPath(pen, path);
-        }
-
-        static GraphicsPath RoundedPath(Rectangle r, int radius)
-        {
-            int d = radius * 2;
-            var p = new GraphicsPath();
-            p.AddArc(r.X, r.Y, d, d, 180, 90);
-            p.AddArc(r.Right - d, r.Y, d, d, 270, 90);
-            p.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
-            p.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
-            p.CloseFigure();
-            return p;
+            if (c.Width <= 0 || c.Height <= 0) return;
+            using (var path = new GraphicsPath())
+            {
+                int d = Math.Max(2, radius) * 2;
+                var r = new Rectangle(0, 0, c.Width, c.Height);
+                if (d > r.Width) d = r.Width;
+                if (d > r.Height) d = r.Height;
+                path.AddArc(r.X, r.Y, d, d, 180, 90);
+                path.AddArc(r.Right - d, r.Y, d, d, 270, 90);
+                path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
+                path.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
+                path.CloseFigure();
+                c.Region = new Region(path);
+            }
         }
     }
 
@@ -155,12 +149,12 @@ namespace HermesEnvGui
         const string HermesWebUiZipUrl = "https://mirrors.qilu-pharma.com/ps-scripts/hermes-web-ui.zip";
         const string AssistantInstallUrl = "https://mirrors.qilu-pharma.com/ps-scripts/QiluAssistant-0.18.0.4-win-x64.exe";
         const string AssistantInstallName = "QiluAssistant-0.18.0.4-win-x64.exe";
-        const string ToolCurrentVersion = "2.1.1";
+        const string ToolCurrentVersion = "2.2.0";
         const string ToolVersionUrl = "https://mirrors.qilu-pharma.com/ps-scripts/AIOptimizeTool.version";
         const string ToolExeUrl = "https://mirrors.qilu-pharma.com/ps-scripts/AIOptimizeTool.exe";
 
-        RoundedTextBox domainAccountBox;
-        RoundedTextBox employeeIdBox;
+        TextBox domainAccountBox;
+        TextBox employeeIdBox;
         readonly RichTextBox logBox;
         readonly Label statusLabel;
         readonly StatusLamp statusLamp;
@@ -193,11 +187,9 @@ namespace HermesEnvGui
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 48F));
             Controls.Add(root);
 
-            var header = new CardPanel();
-            header.DrawShadow = false;
-            header.BorderColor = Color.FromArgb(220, 235, 248);
-            header.Dock = DockStyle.Fill;
+            var header = new Panel();
             header.BackColor = Theme.HeaderBg;
+            header.Dock = DockStyle.Fill;
             header.Padding = new Padding(18, 10, 18, 10);
             header.Margin = new Padding(0, 0, 0, 14);
             root.Controls.Add(header, 0, 0);
@@ -215,7 +207,8 @@ namespace HermesEnvGui
             title.Location = new Point(80, 21);
             header.Controls.Add(title);
 
-            var featurePanel = new CardPanel();
+            var featurePanel = new Panel();
+            featurePanel.BackColor = Theme.CardBg;
             featurePanel.Dock = DockStyle.Fill;
             featurePanel.Padding = new Padding(14);
             featurePanel.Margin = new Padding(0, 0, 0, 14);
@@ -231,16 +224,22 @@ namespace HermesEnvGui
             featureLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 45F));
             featurePanel.Controls.Add(featureLayout);
 
-            var runAllButton = new ThemeButton();
+            var runAllButton = new Button();
             runAllButton.Text = "一键优化";
             runAllButton.Dock = DockStyle.Fill;
-            runAllButton.Kind = ButtonKind.Success;
+            runAllButton.FlatStyle = FlatStyle.Flat;
+            runAllButton.BackColor = Theme.BackColor(ButtonKind.Success);
+            runAllButton.ForeColor = Color.White;
+            runAllButton.FlatAppearance.BorderSize = 0;
+            runAllButton.FlatAppearance.MouseOverBackColor = Theme.HoverColor(ButtonKind.Success);
+            runAllButton.FlatAppearance.MouseDownBackColor = Theme.DownColor(ButtonKind.Success);
             runAllButton.Font = new Font(Font.FontFamily, 14F, FontStyle.Bold);
             runAllButton.MinimumSize = new Size(0, 50);
             runAllButton.Margin = new Padding(0, 0, 0, 10);
-            runAllButton.CornerRadius = 10;
             runAllButton.Tag = TaskMode.RunAll;
-            runAllButton.Click += async (sender, args) => await RunSelectedTaskAsync((TaskMode)((ThemeButton)sender).Tag);
+            runAllButton.Resize += (s, args) => UiHelper.ApplyRoundedRegion(runAllButton, 10);
+            runAllButton.HandleCreated += (s, args) => UiHelper.ApplyRoundedRegion(runAllButton, 10);
+            runAllButton.Click += async (sender, args) => await RunSelectedTaskAsync((TaskMode)((Button)sender).Tag);
             taskButtons.Add(runAllButton);
             featureLayout.Controls.Add(runAllButton, 0, 0);
 
@@ -249,12 +248,13 @@ namespace HermesEnvGui
             accountCard.Margin = new Padding(0, 0, 0, 10);
             featureLayout.Controls.Add(accountCard, 0, 1);
 
-            var basicConfigGroup = new CardPanel();
-            basicConfigGroup.Title = "基础配置";
-            basicConfigGroup.AccentColor = Theme.BackColor(ButtonKind.Primary);
+            var basicConfigGroup = new GroupBox();
+            basicConfigGroup.Text = " 基础配置 ";
+            basicConfigGroup.ForeColor = Theme.TextPrimary;
+            basicConfigGroup.Font = new Font("Microsoft YaHei UI", 10.5F, FontStyle.Bold);
             basicConfigGroup.Dock = DockStyle.Fill;
             basicConfigGroup.Margin = new Padding(0, 0, 0, 10);
-            basicConfigGroup.Padding = new Padding(14, 40, 14, 14);
+            basicConfigGroup.Padding = new Padding(14, 8, 14, 14);
             featureLayout.Controls.Add(basicConfigGroup, 0, 2);
 
             var basicGrid = new TableLayoutPanel();
@@ -273,12 +273,13 @@ namespace HermesEnvGui
             basicGrid.Controls.Add(TaskButton("config配置优化", TaskMode.DownloadYaml, ButtonKind.Primary), 0, 1);
             basicGrid.Controls.Add(TaskButton("账号信息绑定", TaskMode.BindAccount, ButtonKind.Primary), 1, 1);
 
-            var opsGroup = new CardPanel();
-            opsGroup.Title = "运维操作";
-            opsGroup.AccentColor = Theme.BackColor(ButtonKind.Upgrade);
+            var opsGroup = new GroupBox();
+            opsGroup.Text = " 运维操作 ";
+            opsGroup.ForeColor = Theme.TextPrimary;
+            opsGroup.Font = new Font("Microsoft YaHei UI", 10.5F, FontStyle.Bold);
             opsGroup.Dock = DockStyle.Fill;
             opsGroup.Margin = new Padding(0, 10, 0, 0);
-            opsGroup.Padding = new Padding(14, 40, 14, 14);
+            opsGroup.Padding = new Padding(14, 8, 14, 14);
             featureLayout.Controls.Add(opsGroup, 0, 3);
 
             var opsGrid = new TableLayoutPanel();
@@ -296,7 +297,9 @@ namespace HermesEnvGui
             opsGrid.Controls.Add(TaskButton("AI助理升级", TaskMode.SystemUpgrade, ButtonKind.Upgrade), 1, 0);
             opsGrid.Controls.Add(TaskButton("AI助理安装", TaskMode.InstallAssistant, ButtonKind.Install), 2, 0);
 
-            var logPanel = new CardPanel();
+            var logPanel = new Panel();
+            logPanel.BackColor = Theme.CardBg;
+            logPanel.BorderStyle = BorderStyle.FixedSingle;
             logPanel.Dock = DockStyle.Fill;
             logPanel.Padding = new Padding(12);
             logPanel.Margin = new Padding(0, 0, 0, 12);
@@ -423,7 +426,7 @@ namespace HermesEnvGui
             LoadAccountFromEnv();
         }
 
-        ThemeButton SmallTaskButton(string text, TaskMode mode, ButtonKind kind)
+        Button SmallTaskButton(string text, TaskMode mode, ButtonKind kind)
         {
             var button = TaskButton(text, mode, kind);
             button.Font = new Font(Font.FontFamily, 9.5F, FontStyle.Bold);
@@ -432,13 +435,14 @@ namespace HermesEnvGui
             return button;
         }
 
-        CardPanel CreateAccountTaskCard()
+        GroupBox CreateAccountTaskCard()
         {
-            var card = new CardPanel();
-            card.Title = "账号信息";
-            card.AccentColor = Theme.BackColor(ButtonKind.Primary);
+            var card = new GroupBox();
+            card.Text = " 账号信息 ";
+            card.ForeColor = Theme.TextPrimary;
+            card.Font = new Font("Microsoft YaHei UI", 10.5F, FontStyle.Bold);
             card.Dock = DockStyle.Fill;
-            card.Padding = new Padding(12, 40, 12, 12);
+            card.Padding = new Padding(12, 8, 12, 12);
 
             var layout = new TableLayoutPanel();
             layout.Dock = DockStyle.Fill;
@@ -453,38 +457,45 @@ namespace HermesEnvGui
             layout.Controls.Add(FormLabel("域账号"), 0, 0);
 
             domainAccountBox = CreateInputBox("域账号，例如: yaqi.liu");
-            domainAccountBox.Margin = new Padding(0, 2, 8, 2);
+            domainAccountBox.Margin = new Padding(0, 4, 8, 4);
             layout.Controls.Add(domainAccountBox, 1, 0);
 
             layout.Controls.Add(FormLabel("工号"), 0, 1);
 
             employeeIdBox = CreateInputBox("工号，例如: 033633");
-            employeeIdBox.Margin = new Padding(0, 2, 8, 2);
+            employeeIdBox.Margin = new Padding(0, 4, 8, 4);
             layout.Controls.Add(employeeIdBox, 1, 1);
 
             return card;
         }
 
-        ThemeButton TaskButton(string text, TaskMode mode, ButtonKind kind)
+        Button TaskButton(string text, TaskMode mode, ButtonKind kind)
         {
-            var button = new ThemeButton();
+            var button = new Button();
             button.Text = text;
             button.Dock = DockStyle.Fill;
-            button.Kind = kind;
+            button.FlatStyle = FlatStyle.Flat;
+            button.BackColor = Theme.BackColor(kind);
+            button.ForeColor = Color.White;
+            button.FlatAppearance.BorderSize = 0;
+            button.FlatAppearance.MouseOverBackColor = Theme.HoverColor(kind);
+            button.FlatAppearance.MouseDownBackColor = Theme.DownColor(kind);
             button.Font = new Font(Font.FontFamily, 11.5F, FontStyle.Bold);
             button.Margin = new Padding(8);
             button.MinimumSize = new Size(120, 44);
-            button.CornerRadius = 8;
             button.Tag = mode;
-            button.Click += async (sender, args) => await RunSelectedTaskAsync((TaskMode)((ThemeButton)sender).Tag);
+            int radius = 8;
+            button.Resize += (s, args) => UiHelper.ApplyRoundedRegion(button, radius);
+            button.HandleCreated += (s, args) => UiHelper.ApplyRoundedRegion(button, radius);
+            button.Click += async (sender, args) => await RunSelectedTaskAsync((TaskMode)((Button)sender).Tag);
             taskButtons.Add(button);
             return button;
         }
 
         async Task RunSelectedTaskAsync(TaskMode mode)
         {
-            var domainAccount = domainAccountBox.RealText;
-            var employeeId = employeeIdBox.RealText;
+            var domainAccount = GetRealText(domainAccountBox);
+            var employeeId = GetRealText(employeeIdBox);
 
             if ((mode == TaskMode.BindAccount || mode == TaskMode.RunAll) &&
                 (domainAccount.Length == 0 || employeeId.Length == 0))
@@ -1896,12 +1907,62 @@ endlocal
             return label;
         }
 
-        static RoundedTextBox CreateInputBox(string placeholder)
+        static TextBox CreateInputBox(string placeholder)
         {
-            var box = new RoundedTextBox();
+            var box = new TextBox();
             box.Dock = DockStyle.Fill;
-            box.PlaceholderText = placeholder;
+            box.BorderStyle = BorderStyle.FixedSingle;
+            box.Font = new Font("Microsoft YaHei UI", 10.5F);
+            AttachPlaceholder(box, placeholder);
             return box;
+        }
+
+        // 标准 TextBox 没有原生 placeholder，这里用 Enter/Leave 事件模拟灰字提示。
+        static void AttachPlaceholder(TextBox box, string placeholder)
+        {
+            box.Tag = placeholder;
+            if (string.IsNullOrEmpty(box.Text))
+            {
+                box.Text = placeholder;
+                box.ForeColor = Theme.TextMuted;
+            }
+
+            box.Enter -= PlaceholderOnEnter;
+            box.Enter += PlaceholderOnEnter;
+            box.Leave -= PlaceholderOnLeave;
+            box.Leave += PlaceholderOnLeave;
+        }
+
+        static void PlaceholderOnEnter(object sender, EventArgs e)
+        {
+            var box = (TextBox)sender;
+            var placeholder = (string)box.Tag;
+            if (placeholder != null && box.Text == placeholder && box.ForeColor == Theme.TextMuted)
+            {
+                box.Text = "";
+                box.ForeColor = SystemColors.WindowText;
+            }
+        }
+
+        static void PlaceholderOnLeave(object sender, EventArgs e)
+        {
+            var box = (TextBox)sender;
+            var placeholder = (string)box.Tag;
+            if (placeholder != null && string.IsNullOrEmpty(box.Text))
+            {
+                box.Text = placeholder;
+                box.ForeColor = Theme.TextMuted;
+            }
+        }
+
+        // 读取真实值（不返回 placeholder 文本）
+        static string GetRealText(TextBox box)
+        {
+            if (box == null) return "";
+            var placeholder = box.Tag as string;
+            if (placeholder != null && box.Text == placeholder && box.ForeColor == Theme.TextMuted)
+                return "";
+            return box.Text ?? "";
         }
 
         void SetButtonsEnabled(bool enabled)
@@ -2046,9 +2107,13 @@ endlocal
             }
         }
 
-        static void SetTextBoxValue(RoundedTextBox box, string value)
+        static void SetTextBoxValue(TextBox box, string value)
         {
-            box.SetRealText(value);
+            if (box == null) return;
+            var placeholder = box.Tag as string;
+            if (placeholder != null && value == placeholder) return;
+            box.Text = value ?? "";
+            box.ForeColor = SystemColors.WindowText;
         }
 
         void SaveAccountToEnv(string domainAccount, string employeeId)
@@ -2067,195 +2132,6 @@ endlocal
         }
     }
 
-    sealed class CardPanel : Panel
-    {
-        public int CornerRadius = 10;
-        public Color BorderColor = Theme.CardBorder;
-        public int BorderWidth = 1;
-        public string Title = "";
-        public Color TitleColor = Theme.TextPrimary;
-        public Color AccentColor = Theme.BackColor(ButtonKind.Primary);
-        public int TitleHeight = 36;
-        public bool DrawShadow = true;
-
-        public CardPanel()
-        {
-            BackColor = Theme.CardBg;
-            BorderStyle = BorderStyle.None;
-            SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint
-                   | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
-        }
-
-        protected override void OnPaint(PaintEventArgs e)
-        {
-            base.OnPaint(e);
-            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-            int w = ClientSize.Width;
-            int h = ClientSize.Height;
-            var rect = new Rectangle(0, 0, w - 2, h - 3);
-
-            if (DrawShadow)
-            {
-                GraphicsExtension.FillRoundedRectangle(e.Graphics,
-                    new Rectangle(2, 4, w - 4, h - 6), CornerRadius,
-                    Color.FromArgb(20, 18, 30, 50));
-            }
-
-            GraphicsExtension.FillRoundedRectangle(e.Graphics, rect, CornerRadius, BackColor);
-            GraphicsExtension.DrawRoundedRectangle(e.Graphics, rect, CornerRadius, BorderColor, BorderWidth);
-
-            if (Title.Length > 0)
-            {
-                GraphicsExtension.FillRoundedRectangle(e.Graphics,
-                    new Rectangle(14, (TitleHeight - 14) / 2, 4, 14), 2, AccentColor);
-                using (var brush = new SolidBrush(TitleColor))
-                using (var font = new Font("Microsoft YaHei UI", 10.5F, FontStyle.Bold))
-                {
-                    e.Graphics.DrawString(Title, font, brush, 26, (TitleHeight - font.Height) / 2 + 1);
-                }
-            }
-        }
-    }
-
-    sealed class ThemeButton : Button
-    {
-        public ButtonKind Kind = ButtonKind.Primary;
-        public int CornerRadius = 8;
-
-        public ThemeButton()
-        {
-            FlatStyle = FlatStyle.Flat;
-            FlatAppearance.BorderSize = 0;
-            FlatAppearance.MouseOverBackColor = Color.Transparent;
-            FlatAppearance.MouseDownBackColor = Color.Transparent;
-            UseVisualStyleBackColor = false;
-            ForeColor = Color.White;
-            SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint
-                   | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
-        }
-
-        protected override void OnMouseEnter(EventArgs e) { base.OnMouseEnter(e); Invalidate(); }
-        protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); Invalidate(); }
-        protected override void OnMouseDown(MouseEventArgs e) { base.OnMouseDown(e); Invalidate(); }
-        protected override void OnMouseUp(MouseEventArgs e) { base.OnMouseUp(e); Invalidate(); }
-        protected override void OnEnabledChanged(EventArgs e) { base.OnEnabledChanged(e); Invalidate(); }
-
-        protected override void OnPaint(PaintEventArgs e)
-        {
-            base.OnPaint(e);
-            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-            var c = Theme.BackColor(Kind);
-            if (!Enabled)
-                c = ControlPaint.Light(c, 0.6f);
-            else if (MouseButtons == MouseButtons.Left && ClientRectangle.Contains(PointToClient(MousePosition)))
-                c = Theme.DownColor(Kind);
-            else if (IsHover())
-                c = Theme.HoverColor(Kind);
-
-            GraphicsExtension.FillRoundedRectangle(e.Graphics,
-                new Rectangle(0, 0, Width - 1, Height - 1), CornerRadius, c);
-            TextRenderer.DrawText(e.Graphics, Text, Font, ClientRectangle,
-                ForeColor, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
-        }
-
-        bool IsHover()
-        {
-            return ClientRectangle.Contains(PointToClient(MousePosition));
-        }
-    }
-
-    sealed class RoundedTextBox : UserControl
-    {
-        readonly TextBox inner = new TextBox();
-        string placeholder = "";
-        public int CornerRadius = 8;
-        public Color BorderColor = Color.FromArgb(203, 213, 225);
-        public Color FocusBorderColor = Theme.BackColor(ButtonKind.Primary);
-
-        public RoundedTextBox()
-        {
-            BackColor = Color.White;
-            inner.BorderStyle = BorderStyle.None;
-            inner.Dock = DockStyle.Fill;
-            inner.Font = new Font("Microsoft YaHei UI", 10.5F);
-            inner.Margin = new Padding(10, 6, 10, 6);
-            inner.GotFocus += (s, ev) =>
-            {
-                if (inner.Text == placeholder)
-                {
-                    inner.Text = "";
-                    inner.ForeColor = SystemColors.WindowText;
-                }
-                Invalidate();
-            };
-            inner.LostFocus += (s, ev) =>
-            {
-                if (string.IsNullOrEmpty(inner.Text) && !string.IsNullOrEmpty(placeholder))
-                {
-                    inner.Text = placeholder;
-                    inner.ForeColor = Theme.TextMuted;
-                }
-                Invalidate();
-            };
-            inner.TextChanged += (s, ev) =>
-            {
-                if (inner.Text != placeholder)
-                    inner.ForeColor = SystemColors.WindowText;
-                Invalidate();
-            };
-            Controls.Add(inner);
-            Padding = new Padding(1);
-            SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint
-                   | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
-        }
-
-        public override string Text
-        {
-            get { return inner.Text; }
-            set { inner.Text = value; }
-        }
-
-        public string RealText
-        {
-            get { return inner.Text == placeholder ? "" : inner.Text; }
-        }
-
-        public new Font Font
-        {
-            get { return inner.Font; }
-            set { inner.Font = value; }
-        }
-
-        public string PlaceholderText
-        {
-            get { return placeholder; }
-            set
-            {
-                placeholder = value;
-                if (string.IsNullOrEmpty(inner.Text) && !string.IsNullOrEmpty(placeholder))
-                {
-                    inner.Text = placeholder;
-                    inner.ForeColor = Theme.TextMuted;
-                }
-            }
-        }
-
-        public void SetRealText(string value)
-        {
-            inner.Text = value;
-            inner.ForeColor = SystemColors.WindowText;
-        }
-
-        protected override void OnPaint(PaintEventArgs e)
-        {
-            base.OnPaint(e);
-            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-            var bc = inner.Focused ? FocusBorderColor : BorderColor;
-            var rect = new Rectangle(0, 0, Width - 1, Height - 1);
-            GraphicsExtension.FillRoundedRectangle(e.Graphics, rect, CornerRadius, BackColor);
-            GraphicsExtension.DrawRoundedRectangle(e.Graphics, rect, CornerRadius, bc, 1);
-        }
-    }
 
     sealed class ExecutionResult
     {
