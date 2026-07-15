@@ -31,7 +31,8 @@ namespace HermesEnvGui
         Success,
         Danger,
         Clean,
-        Upgrade
+        Upgrade,
+        Install
     }
 
     static class Theme
@@ -55,6 +56,7 @@ namespace HermesEnvGui
                 case ButtonKind.Danger: return Color.FromArgb(203, 72, 72);
                 case ButtonKind.Clean: return Color.FromArgb(124, 110, 196);
                 case ButtonKind.Upgrade: return Color.FromArgb(13, 148, 165);
+                case ButtonKind.Install: return Color.FromArgb(217, 119, 6);
                 default: return Color.FromArgb(37, 99, 235);
             }
         }
@@ -68,6 +70,7 @@ namespace HermesEnvGui
                 case ButtonKind.Danger: return Color.FromArgb(220, 95, 95);
                 case ButtonKind.Clean: return Color.FromArgb(140, 127, 209);
                 case ButtonKind.Upgrade: return Color.FromArgb(24, 165, 182);
+                case ButtonKind.Install: return Color.FromArgb(245, 158, 11);
                 default: return Color.FromArgb(59, 130, 246);
             }
         }
@@ -81,6 +84,7 @@ namespace HermesEnvGui
                 case ButtonKind.Danger: return Color.FromArgb(165, 55, 55);
                 case ButtonKind.Clean: return Color.FromArgb(104, 92, 170);
                 case ButtonKind.Upgrade: return Color.FromArgb(11, 125, 140);
+                case ButtonKind.Install: return Color.FromArgb(180, 83, 9);
                 default: return Color.FromArgb(29, 78, 200);
             }
         }
@@ -127,6 +131,7 @@ namespace HermesEnvGui
         RestartService,
         ToolUpgrade,
         SystemUpgrade,
+        InstallAssistant,
         RunAll
     }
 
@@ -148,6 +153,8 @@ namespace HermesEnvGui
         const string ConfigYamlUrl = "https://mirrors.qilu-pharma.com/ps-scripts/config.yaml";
         const string HermesAgentZipUrl = "https://mirrors.qilu-pharma.com/ps-scripts/hermes-agent.zip";
         const string HermesWebUiZipUrl = "https://mirrors.qilu-pharma.com/ps-scripts/hermes-web-ui.zip";
+        const string AssistantInstallUrl = "https://mirrors.qilu-pharma.com/ps-scripts/QiluAssistant-0.18.0.4-win-x64.exe";
+        const string AssistantInstallName = "QiluAssistant-0.18.0.4-win-x64.exe";
         const string ToolCurrentVersion = "2.1.1";
         const string ToolVersionUrl = "https://mirrors.qilu-pharma.com/ps-scripts/AIOptimizeTool.version";
         const string ToolExeUrl = "https://mirrors.qilu-pharma.com/ps-scripts/AIOptimizeTool.exe";
@@ -276,16 +283,18 @@ namespace HermesEnvGui
 
             var opsGrid = new TableLayoutPanel();
             opsGrid.Dock = DockStyle.Fill;
-            opsGrid.ColumnCount = 2;
+            opsGrid.ColumnCount = 3;
             opsGrid.RowCount = 1;
             opsGrid.Padding = new Padding(4);
-            opsGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            opsGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            opsGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33F));
+            opsGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33F));
+            opsGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.34F));
             opsGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             opsGroup.Controls.Add(opsGrid);
 
             opsGrid.Controls.Add(TaskButton("缓存清理", TaskMode.ClearCache, ButtonKind.Clean), 0, 0);
             opsGrid.Controls.Add(TaskButton("AI助理升级", TaskMode.SystemUpgrade, ButtonKind.Upgrade), 1, 0);
+            opsGrid.Controls.Add(TaskButton("AI助理安装", TaskMode.InstallAssistant, ButtonKind.Install), 2, 0);
 
             var logPanel = new CardPanel();
             logPanel.Dock = DockStyle.Fill;
@@ -484,13 +493,15 @@ namespace HermesEnvGui
                 return;
             }
 
-            if (mode == TaskMode.StopService || mode == TaskMode.RestartService || mode == TaskMode.SystemUpgrade)
+            if (mode == TaskMode.StopService || mode == TaskMode.RestartService || mode == TaskMode.SystemUpgrade || mode == TaskMode.InstallAssistant)
             {
                 string confirmMessage;
                 if (mode == TaskMode.StopService)
                     confirmMessage = "停止服务后所有用户将无法使用AI助理，确定继续？";
                 else if (mode == TaskMode.RestartService)
                     confirmMessage = "重启服务期间所有用户将暂时无法使用AI助理，确定继续？";
+                else if (mode == TaskMode.InstallAssistant)
+                    confirmMessage = "将下载并静默安装 AI 助理程序版 (" + AssistantInstallName + ")，安装期间可能重启 AI 助理相关组件，确定继续？";
                 else
                 {
                     var localVersion = GetLocalHermesVersion();
@@ -585,6 +596,11 @@ namespace HermesEnvGui
                 return "状态：执行成功";
             }
 
+            if (mode == TaskMode.InstallAssistant)
+            {
+                return "状态：AI 助理程序版安装成功";
+            }
+
             return "状态：执行成功，请重启服务";
         }
 
@@ -659,6 +675,13 @@ namespace HermesEnvGui
                 if (mode == TaskMode.SystemUpgrade)
                 {
                     SystemUpgrade(result, progress);
+                    if (!result.Succeeded) return result;
+                }
+
+                if (mode == TaskMode.InstallAssistant)
+                {
+                    progress.Report(new ProgressUpdate(5, "进度：开始安装 AI 助理程序版"));
+                    InstallAssistant(result, progress);
                     if (!result.Succeeded) return result;
                 }
             }
@@ -998,6 +1021,79 @@ endlocal
             progress.Report(new ProgressUpdate(95, "进度：等待服务恢复"));
             progress.Report(new ProgressUpdate(100, "进度：系统升级完成"));
             result.Success("系统升级完成。");
+        }
+
+        static void InstallAssistant(ExecutionResult result, IProgress<ProgressUpdate> progress)
+        {
+            progress.Report(new ProgressUpdate(5, "进度：开始安装 AI 助理程序版"));
+            result.Info("开始下载并安装 AI 助理程序版...");
+
+            var installerPath = Path.Combine(Path.GetTempPath(), AssistantInstallName);
+
+            progress.Report(new ProgressUpdate(10, "进度：下载安装包"));
+            result.Info("下载地址：" + AssistantInstallUrl);
+            if (!DownloadFileWithFallback(AssistantInstallUrl, installerPath, AssistantInstallName, result))
+            {
+                result.Error("AI 助理安装包下载失败，请确认网络连通或云端地址可访问。");
+                return;
+            }
+
+            result.Success("安装包已下载：" + installerPath);
+
+            progress.Report(new ProgressUpdate(40, "进度：正在静默安装"));
+            result.Info("正在运行安装程序（静默安装 /S）...");
+
+            if (!RunInstallerAndWait(installerPath, result))
+            {
+                return;
+            }
+
+            try { File.Delete(installerPath); } catch { }
+
+            progress.Report(new ProgressUpdate(100, "进度：安装完成"));
+            result.Success("AI 助理程序版安装完成。");
+        }
+
+        static bool RunInstallerAndWait(string fileName, ExecutionResult result)
+        {
+            try
+            {
+                var psi = new ProcessStartInfo();
+                psi.FileName = fileName;
+                psi.Arguments = "/S";
+                psi.UseShellExecute = true;
+                psi.CreateNoWindow = false;
+
+                using (var process = Process.Start(psi))
+                {
+                    if (process == null)
+                    {
+                        result.Error("无法启动安装程序：" + fileName);
+                        return false;
+                    }
+
+                    if (!process.WaitForExit(600000))
+                    {
+                        try { process.Kill(); } catch { }
+                        result.Error("安装程序执行超时（10 分钟），请手动运行安装包：" + fileName);
+                        return false;
+                    }
+
+                    if (process.ExitCode == 0)
+                    {
+                        result.Info("安装程序已退出，退出码 0。");
+                        return true;
+                    }
+
+                    result.Error("安装程序退出，退出码 " + process.ExitCode + "，请手动运行安装包确认安装结果。");
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                result.Error("运行安装程序失败：" + ex.Message);
+                return false;
+            }
         }
 
         static bool StopHermes(ExecutionResult result)
